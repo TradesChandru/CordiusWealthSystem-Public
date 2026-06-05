@@ -663,14 +663,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
           <div class="hyp-state" id="svc-ftmo-state">—</div>
         </div>
       </div>
-      <div style="margin-top:10px;padding:8px 10px;background:var(--bg3);border-radius:5px;border:1px solid var(--border);">
-        <div style="font-size:9px;color:var(--dim);margin-bottom:4px;">API base URL</div>
-        <input id="api-base-input" type="text" value="https://api.cordius.in"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:4px 8px;font-family:var(--mono);font-size:11px;color:var(--text);outline:none;"
-          placeholder="http://your-alb-url:8000"
-          onchange="API_BASE=this.value;fetchAll()">
-        <div style="font-size:9px;color:var(--dim);margin-top:4px;">CRE api-gateway or internal ALB</div>
-      </div>
     </div>
   </div>
 
@@ -688,11 +680,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 // ─────────────────────────────────────────────
 // CONFIG — set your CRE / signal-engine URL
 // ─────────────────────────────────────────────
-let API_BASE = (()=>{
-  const saved = localStorage.getItem('cip_api_base');
-  if(saved) return saved;
-  return 'https://api.cordius.in';
-})();
+const API_BASE = 'https://api.cordius.in';
 const API_SIGNAL_STATE = () => `${API_BASE}/v1/signal-state/ST-AURUM-01`;
 const API_POSITIONS    = () => `${API_BASE}/api/v1/positions?strategy_id=ST-AURUM-01`;
 const API_HEALTH       = () => `${API_BASE}/api/v1/health`;
@@ -1074,10 +1062,6 @@ async function fetchAll(){
     if(sd) sd.style.background = 'var(--danger)';
   }
   if($('sb-last-update')) $('sb-last-update').textContent = new Date().toUTCString().slice(17,25)+' UTC';
-
-  // Save API base
-  if(API_BASE) localStorage.setItem('cip_api_base', API_BASE);
-  if($('api-base-input')) $('api-base-input').value = API_BASE;
 }
 
 // ─────────────────────────────────────────────
