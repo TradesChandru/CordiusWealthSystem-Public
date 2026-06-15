@@ -618,18 +618,21 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 const CRE_URL_KEY = 'cws_cre_straddle_url';
 const SE_URL_KEY  = 'cws_straddle_engine_url';
 
-let CRE_BASE = localStorage.getItem(CRE_URL_KEY) || '';
-let SE_BASE  = localStorage.getItem(SE_URL_KEY)  || '';
+// Unified base: everything is proxied through api.cordius.in (api-gateway
+// /straddle/* routes). Pre-filled so the monitor works on load.
+let SE_BASE  = localStorage.getItem(SE_URL_KEY) || 'https://api.cordius.in';
+let CRE_BASE = SE_BASE;  // retained for existing guards; same origin via proxy
 
-// API endpoints — adjust to match actual straddle-engine API paths
+// API endpoints — api-gateway straddle proxy.
 const API = {
-  creHealth    : () => `${CRE_BASE}/health`,
-  seHealth     : () => `${SE_BASE}/health`,
-  positions    : () => `${SE_BASE}/v1/positions`,
-  strategyState: (sid) => `${SE_BASE}/v1/strategy/${sid}/state`,
-  signals      : () => `${SE_BASE}/v1/signals/recent?limit=50`,
-  trades       : () => `${SE_BASE}/v1/trades/recent?limit=20`,
-  balance      : () => `${CRE_BASE}/v1/balance/47167724`,
+  seHealth     : () => `${SE_BASE}/straddle/health`,
+  seState      : () => `${SE_BASE}/straddle/state`,
+  seSignals    : () => `${SE_BASE}/straddle/signals`,
+  seTrades     : () => `${SE_BASE}/straddle/trades`,
+  creHealth    : () => `${SE_BASE}/straddle/cre/health`,
+  creBalance   : () => `${SE_BASE}/straddle/cre/balance`,
+  crePositions : () => `${SE_BASE}/straddle/cre/positions`,
+  creRisk      : () => `${SE_BASE}/straddle/cre/risk`,
 };
 
 const REFRESH_INTERVAL = 5;
@@ -641,7 +644,7 @@ let currentSessTab = 'asian';
 
 // init URL inputs
 const apiInput = document.getElementById('api-base-input');
-if(apiInput) apiInput.value = CRE_BASE || SE_BASE || '';
+if(apiInput) apiInput.value = SE_BASE;
 
 // ═══════════════════════════════════════════
 // HELPERS
@@ -1026,7 +1029,7 @@ async function safeGet(url){
 }
 
 async function fetchCREHealth(){
-  if(!CRE_BASE) return null;
+  if(!SE_BASE) return null;
   const d = await safeGet(API.creHealth());
   const ok = d && (d.status === 'ok' || d.status === 'healthy');
   dot('dot-cre', ok ? 'dot-ok' : 'dot-err');
@@ -1055,12 +1058,13 @@ async function fetchSEHealth(){
 }
 
 async function fetchBalance(){
-  if(!CRE_BASE) return;
-  const d = await safeGet(API.balance());
+  if(!SE_BASE) return;
+  const d = await safeGet(API.creBalance());
   if(!d) return;
-  const equity = parseFloat(d.equity || d.balance || 0);
+  const equity = parseFloat(d.equity_usd || d.equity || d.balance || 0);
+  const marginFree = parseFloat(d.margin_free_usd || 0);
   if($('equity-value')) $('equity-value').textContent = equity > 0 ? `$${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '—';
-  if($('equity-sub')) $('equity-sub').textContent = `Pepperstone demo · ${fmtTime(d.as_of || d.timestamp)}`;
+  if($('equity-sub')) $('equity-sub').textContent = `Pepperstone demo · free $${marginFree.toLocaleString('en-US',{maximumFractionDigits:0})} · ${fmtTime(d.updated_at || d.as_of)}`;
   dot('dot-broker', equity > 0 ? 'dot-ok' : 'dot-warn');
   if($('state-broker')) $('state-broker').textContent = equity > 0 ? `$${equity.toLocaleString()}` : 'unknown';
 
@@ -1080,31 +1084,42 @@ async function fetchBalance(){
 
 async function fetchStrategyStates(){
   if(!SE_BASE) return;
-  // Fetch PD1H state
-  const pd1h = await safeGet(API.strategyState('SS-PD1H-01'));
-  // Fetch SESSION state
-  const sess = await safeGet(API.strategyState('SS-SESS-01'));
-  // Get current price from either state
-  const price = parseFloat(pd1h?.price?.mid || sess?.price?.mid || lastPrice_ || 0);
-  if(price) updatePriceDisplay(price, pd1h?.price);
-  if(pd1h) renderStrategyState('SS-PD1H-01', pd1h, price);
-  if(sess) renderStrategyState('SS-SESS-01', sess, price);
+  // Single snapshot from straddle-engine /v1/state {price, pd1h, sess}.
+  const data = await safeGet(API.seState());
+  if(!data) return;
+  const price = parseFloat(data.price?.mid || lastPrice_ || 0);
+  if(price) updatePriceDisplay(price, data.price);
+  if(data.pd1h) renderStrategyState('SS-PD1H-01', data.pd1h, price);
+  if(data.sess){
+    // Bridge the /v1/state sess shape {active_session, asian, ny} into the
+    // shape renderStrategyState expects {zone(truthy), sessions:{asian,ny}, …}.
+    const s = data.sess;
+    const combined = (s.asian?.combined_pnl || 0) + (s.ny?.combined_pnl || 0);
+    const positions = [...(s.asian?.positions || []), ...(s.ny?.positions || [])];
+    renderStrategyState('SS-SESS-01', {
+      active_session: s.active_session,
+      combined_pnl: combined,
+      positions,
+      zone: (s.asian?.zone || s.ny?.zone || {high:0, low:0}),
+      sessions: { asian: s.asian, ny: s.ny },
+    }, price);
+  }
 }
 
 async function fetchPositions(){
   if(!SE_BASE) return;
-  const d = await safeGet(API.positions());
+  const d = await safeGet(API.crePositions());
   if(!d) return;
-  const total = (d.positions || d).length || 0;
+  const total = (Array.isArray(d) ? d : (d.positions || [])).length || 0;
   if($('sb-pos-text')) $('sb-pos-text').textContent = `Positions: ${total} open`;
   if($('sb-pos-dot')) $('sb-pos-dot').className = `sb-dot ${total > 0 ? 'sb-ok' : 'sb-dim'}`;
 }
 
 async function fetchSignals(){
   if(!SE_BASE) return;
-  const d = await safeGet(API.signals());
+  const d = await safeGet(API.seSignals());
   if(!d) return;
-  const signals = d.signals || d || [];
+  const signals = d.signals || [];
   // Rebuild log from API (replace in-memory)
   signalLog = signals.map(s => ({
     type  : s.signal_type || s.type || s.event || 'UNKNOWN',
@@ -1128,9 +1143,9 @@ function buildSigDetail(s){
 
 async function fetchTrades(){
   if(!SE_BASE) return;
-  const d = await safeGet(API.trades());
+  const d = await safeGet(API.seTrades());
   if(!d) return;
-  const trades = d.trades || d || [];
+  const trades = d.trades || [];
   renderTradeHistory(trades);
 
   // Today P&L summary
@@ -1199,17 +1214,10 @@ async function fetchAll(){
 }
 
 function onApiChange(val){
-  // Accept either SE URL or CRE URL — try to detect by port
-  if(val.includes(':8002')){
-    CRE_BASE = val.replace(/\/$/, '');
-    localStorage.setItem(CRE_URL_KEY, CRE_BASE);
-  } else {
-    SE_BASE = val.replace(/\/$/, '');
-    localStorage.setItem(SE_URL_KEY, SE_BASE);
-    // Also set CRE as 8002 if SE uses 8080
-    CRE_BASE = SE_BASE.replace(/:\d+/, ':8002');
-    localStorage.setItem(CRE_URL_KEY, CRE_BASE);
-  }
+  // Single unified base (api.cordius.in). All upstreams via /straddle/* proxy.
+  SE_BASE = val.replace(/\/$/, '');
+  CRE_BASE = SE_BASE;
+  localStorage.setItem(SE_URL_KEY, SE_BASE);
   fetchAll();
 }
 
