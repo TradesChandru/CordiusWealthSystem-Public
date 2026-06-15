@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CWS CIP — Straddle Live Monitor</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg:#0a0c10;--bg2:#111318;--bg3:#1a1d24;--bg4:#20242e;
+  --border:#262a35;--border2:#2f3445;
+  --text:#e2e6ef;--muted:#6b7280;--dim:#4b5263;
+  --accent:#00d4aa;--accent2:#4f9fff;
+  --warn:#f59e0b;--danger:#ef4444;--success:#10b981;
+  --purple:#a78bfa;--orange:#fb923c;--gold:#fbbf24;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.5;overflow-x:hidden;}
+
+/* TOPBAR */
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.topbar-left{display:flex;align-items:center;gap:16px;}
+.logo-mark{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.15em;text-transform:uppercase;}
+.page-title{font-size:14px;font-weight:600;color:var(--text);}
+.page-sub{font-size:11px;color:var(--muted);font-family:var(--mono);}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.live-pill{display:inline-flex;align-items:center;gap:5px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:var(--success);font-size:10px;font-family:var(--mono);padding:3px 9px;border-radius:20px;letter-spacing:.05em;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--success);animation:blink 1.5s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.refresh-info{font-size:10px;font-family:var(--mono);color:var(--dim);}
+.btn-refresh{background:var(--bg3);border:1px solid var(--border2);color:var(--muted);font-size:11px;font-family:var(--mono);padding:4px 12px;border-radius:4px;cursor:pointer;transition:all .15s;}
+.btn-refresh:hover{border-color:var(--accent);color:var(--accent);}
+.api-input{background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-size:11px;font-family:var(--mono);padding:4px 8px;border-radius:4px;width:260px;outline:none;}
+.api-input:focus{border-color:var(--accent);}
+
+/* MAIN */
+.main{padding:16px 20px;max-width:1800px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding-bottom:48px;}
+@media(max-width:1400px){.main{grid-template-columns:1fr 1fr;}}
+@media(max-width:900px){.main{grid-template-columns:1fr;}}
+.span-full{grid-column:1/-1;}
+.span-2{grid-column:span 2;}
+@media(max-width:1400px){.span-2{grid-column:span 1;}}
+
+/* PRICE HERO */
+.price-hero{background:linear-gradient(135deg,var(--bg2) 0%,rgba(0,212,170,.04) 100%);border:1px solid var(--border);border-radius:8px;padding:16px 20px;display:grid;grid-template-columns:auto 1fr auto auto;gap:20px;align-items:center;}
+.price-main .price-label{font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px;}
+.price-value{font-family:var(--mono);font-size:38px;font-weight:600;letter-spacing:-.02em;}
+.price-dec{font-size:24px;opacity:.7;}
+.price-change{font-family:var(--mono);font-size:12px;margin-top:2px;}
+.price-up{color:var(--success);}
+.price-down{color:var(--danger);}
+.pm-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;}
+.pm-item{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:8px 12px;}
+.pm-label{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;}
+.pm-value{font-family:var(--mono);font-size:13px;font-weight:500;margin-top:2px;}
+.bar-timer{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:90px;}
+.bt-label{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;}
+.bt-value{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent2);}
+.bar-prog{width:80px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:2px;}
+.bar-fill{height:100%;background:var(--accent2);border-radius:2px;}
+.bt-next{font-family:var(--mono);font-size:10px;color:var(--muted);}
+
+/* SESSION STATUS */
+.session-status{display:flex;gap:8px;}
+.sess-badge{display:flex;flex-direction:column;align-items:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 14px;min-width:90px;}
+.sess-name{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:3px;}
+.sess-state{font-family:var(--mono);font-size:11px;font-weight:600;}
+.sess-active{border-color:var(--accent);background:rgba(0,212,170,.05);}
+.sess-active .sess-state{color:var(--accent);}
+.sess-inactive .sess-state{color:var(--dim);}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.card-header{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg3);}
+.card-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);}
+.card-badge{font-size:9px;font-family:var(--mono);padding:2px 7px;border-radius:3px;border:1px solid var(--border);background:var(--bg);color:var(--dim);}
+.card-body{padding:14px 16px;}
+
+/* ZONE PANEL */
+.zone-display{margin:8px 0;}
+.zone-track{position:relative;height:56px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin:8px 0;}
+.zone-band{position:absolute;left:0;right:0;background:rgba(245,158,11,.08);border-top:1px dashed rgba(245,158,11,.4);border-bottom:1px dashed rgba(245,158,11,.4);}
+.zone-high-line{position:absolute;left:0;right:0;height:2px;background:rgba(0,212,170,.7);}
+.zone-low-line{position:absolute;left:0;right:0;height:2px;background:rgba(239,68,68,.7);}
+.zone-price-line{position:absolute;left:0;right:0;height:2px;background:var(--accent2);box-shadow:0 0 4px var(--accent2);}
+.zone-label{position:absolute;right:6px;font-size:9px;font-family:var(--mono);}
+.zone-label-high{top:2px;color:var(--accent);}
+.zone-label-low{bottom:2px;color:var(--danger);}
+.zone-label-price{color:var(--accent2);}
+.zone-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(38,42,53,.4);font-size:12px;}
+.zone-row:last-child{border-bottom:none;}
+.zone-k{color:var(--muted);}
+.zone-v{font-family:var(--mono);font-size:12px;}
+.dist-tag{display:inline-block;font-size:10px;font-family:var(--mono);padding:1px 5px;border-radius:3px;margin-left:6px;}
+.dist-above{background:rgba(0,212,170,.1);color:var(--accent);border:1px solid rgba(0,212,170,.2);}
+.dist-below{background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.2);}
+.dist-inside{background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.2);}
+
+/* POSITION CARDS */
+.pos-list{display:flex;flex-direction:column;gap:8px;}
+.pos-card{border-radius:6px;overflow:hidden;border:1px solid var(--border);background:var(--bg3);}
+.pos-card-hdr{padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.pos-long{border-left:3px solid var(--success);}
+.pos-short{border-left:3px solid var(--danger);}
+.pos-side-label{font-size:11px;font-weight:600;}
+.pos-pnl{font-family:var(--mono);font-size:13px;font-weight:600;}
+.pnl-pos{color:var(--success);}
+.pnl-neg{color:var(--danger);}
+.pos-body{padding:10px 12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.pf-label{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;}
+.pf-value{font-family:var(--mono);font-size:12px;margin-top:2px;}
+.no-pos{text-align:center;padding:28px 16px;color:var(--dim);}
+.no-pos-icon{font-size:24px;margin-bottom:6px;}
+
+/* COMBINED PnL METER */
+.combined-meter{margin:8px 0;}
+.cm-bar{height:12px;background:var(--bg3);border-radius:6px;overflow:hidden;position:relative;border:1px solid var(--border);}
+.cm-fill{height:100%;border-radius:6px;transition:width .4s, background .3s;}
+.cm-fill-pos{background:linear-gradient(90deg,var(--accent),var(--success));}
+.cm-fill-neg{background:linear-gradient(90deg,var(--danger),rgba(239,68,68,.5));}
+.cm-gate-marker{position:absolute;top:0;bottom:0;width:2px;background:var(--danger);opacity:.7;}
+.cm-target-marker{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);opacity:.7;}
+.cm-labels{display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);color:var(--muted);margin-top:4px;}
+.cm-value{font-family:var(--mono);font-size:24px;font-weight:700;text-align:center;margin:6px 0;}
+.cm-targets{display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono);margin-top:6px;}
+.cm-gate{color:var(--danger);}
+.cm-target{color:var(--accent);}
+
+/* SIGNAL LOG */
+.signal-log{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;}
+.sig-entry{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:5px;border:1px solid var(--border);background:var(--bg3);font-size:11px;}
+.sig-icon{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px;}
+.si-long{background:rgba(16,185,129,.15);color:var(--success);}
+.si-short{background:rgba(239,68,68,.15);color:var(--danger);}
+.si-close-target{background:rgba(0,212,170,.15);color:var(--accent);}
+.si-close-gate{background:rgba(245,158,11,.15);color:var(--warn);}
+.si-close-sess{background:rgba(107,114,128,.15);color:var(--muted);}
+.si-zone{background:rgba(79,159,255,.15);color:var(--accent2);}
+.si-info{background:rgba(107,114,128,.1);color:var(--muted);}
+.sig-content{flex:1;}
+.sig-type{font-weight:600;margin-bottom:2px;}
+.sig-detail{color:var(--muted);font-family:var(--mono);font-size:10px;}
+.sig-time{font-family:var(--mono);font-size:10px;color:var(--dim);flex-shrink:0;}
+
+/* SESSION CARDS */
+.strat-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.strat-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.strat-name{font-size:13px;font-weight:600;}
+.strat-pd1h .strat-name{color:var(--accent);}
+.strat-sess .strat-name{color:var(--gold);}
+.strat-id{font-size:10px;font-family:var(--mono);color:var(--muted);}
+.strat-body{padding:14px 16px;}
+.strat-metrics{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;}
+.sm-item{background:var(--bg3);border-radius:5px;padding:8px;border:1px solid var(--border);text-align:center;}
+.sm-label{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+.sm-value{font-family:var(--mono);font-size:14px;font-weight:600;}
+
+/* TRADE HISTORY TABLE */
+.hist-table{width:100%;border-collapse:collapse;font-size:11px;}
+.hist-table th{background:var(--bg3);color:var(--muted);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);}
+.hist-table td{padding:7px 10px;border-bottom:1px solid rgba(38,42,53,.4);font-family:var(--mono);}
+.hist-table tr:hover td{background:rgba(255,255,255,.02);}
+.tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:600;font-family:var(--sans);}
+.tag-long{background:rgba(16,185,129,.1);color:var(--success);border:1px solid rgba(16,185,129,.25);}
+.tag-short{background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.25);}
+.tag-target{background:rgba(0,212,170,.1);color:var(--accent);border:1px solid rgba(0,212,170,.25);}
+.tag-gate{background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.25);}
+.tag-sess{background:rgba(107,114,128,.1);color:var(--muted);border:1px solid var(--border);}
+.pnl-green{color:var(--success);}
+.pnl-red{color:var(--danger);}
+
+/* SERVICE STATUS */
+.svc-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--bg3);border-radius:5px;border:1px solid var(--border);margin-bottom:6px;}
+.svc-left{display:flex;align-items:center;gap:8px;}
+.svc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.dot-ok{background:var(--success);}
+.dot-warn{background:var(--warn);}
+.dot-err{background:var(--danger);}
+.dot-dim{background:var(--dim);}
+.svc-name{font-size:12px;font-weight:500;}
+.svc-detail{font-size:10px;color:var(--muted);font-family:var(--mono);}
+
+/* STATUS BAR */
+.status-bar{background:var(--bg2);border-top:1px solid var(--border);padding:5px 24px;display:flex;align-items:center;gap:20px;font-size:10px;font-family:var(--mono);color:var(--dim);position:fixed;bottom:0;left:0;right:0;z-index:50;}
+.sb-item{display:flex;align-items:center;gap:5px;}
+.sb-dot{width:5px;height:5px;border-radius:50%;}
+.sb-ok{background:var(--success);}
+.sb-err{background:var(--danger);}
+.sb-warn{background:var(--warn);}
+.sb-dim{background:var(--dim);}
+
+/* FLASH */
+@keyframes flash-green{0%{background:rgba(16,185,129,.15)}100%{background:transparent}}
+@keyframes flash-red{0%{background:rgba(239,68,68,.1)}100%{background:transparent}}
+.flash-g{animation:flash-green .8s ease-out;}
+.flash-r{animation:flash-red .8s ease-out;}
+
+/* LOADING */
+@keyframes lpulse{0%,100%{opacity:.4}50%{opacity:1}}
+.loading{animation:lpulse 1.5s ease-in-out infinite;color:var(--dim);}
+.empty-state{text-align:center;padding:20px;color:var(--dim);font-family:var(--mono);font-size:12px;}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="logo-mark">CWS CIP</span>
+    <div>
+      <div class="page-title">Squeeze Straddle — Live Monitor</div>
+      <div class="page-sub">SS-PD1H-01 + SS-SESS-01 · XAU/USD · CBA 7 (47167724)</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <input class="api-input" id="api-base-input" type="text"
+      placeholder="http://internal-alb-...:8002"
+      title="CRE-STRADDLE URL (ALB port 8002)"
+      onchange="onApiChange(this.value)">
+    <div class="refresh-info">Next in <span id="countdown" style="color:var(--muted);">5s</span></div>
+    <button class="btn-refresh" onclick="fetchAll()">↻ Refresh</button>
+    <div class="live-pill"><span class="live-dot"></span> LIVE</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ═══ PRICE HERO ═══ -->
+  <div class="span-full">
+    <div class="price-hero">
+      <div class="price-main">
+        <div class="price-label">XAU/USD · Mid</div>
+        <div class="price-value"><span id="price-int">——</span><span class="price-dec">.<span id="price-dec">——</span></span></div>
+        <div class="price-change" id="price-change">—</div>
+      </div>
+      <div class="pm-grid">
+        <div class="pm-item"><div class="pm-label">Bid</div><div class="pm-value" id="bid-val">—</div></div>
+        <div class="pm-item"><div class="pm-label">Ask</div><div class="pm-value" id="ask-val">—</div></div>
+        <div class="pm-item"><div class="pm-label">Spread</div><div class="pm-value" id="spread-val">—</div></div>
+        <div class="pm-item"><div class="pm-label">Last bar</div><div class="pm-value" id="bar-time">—</div></div>
+      </div>
+      <div class="session-status" id="session-status">
+        <div class="sess-badge sess-inactive" id="sess-pd1h">
+          <div class="sess-name">PD1H</div>
+          <div class="sess-state" id="sess-pd1h-state">—</div>
+        </div>
+        <div class="sess-badge sess-inactive" id="sess-asian">
+          <div class="sess-name">ASIAN</div>
+          <div class="sess-state" id="sess-asian-state">—</div>
+        </div>
+        <div class="sess-badge sess-inactive" id="sess-ny">
+          <div class="sess-name">NY</div>
+          <div class="sess-state" id="sess-ny-state">—</div>
+        </div>
+      </div>
+      <div class="bar-timer">
+        <div class="bt-label">Bar closes in</div>
+        <div class="bt-value" id="bar-countdown">—</div>
+        <div class="bar-prog"><div class="bar-fill" id="bar-prog" style="width:0%"></div></div>
+        <div class="bt-next" id="bar-next">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PD1H STRATEGY ═══ -->
+  <div class="strat-card strat-pd1h">
+    <div class="strat-hdr">
+      <div>
+        <div class="strat-name">PD1H Squeeze Straddle</div>
+        <div class="strat-id">SS-PD1H-01 · Entry 07:00–17:00 UTC</div>
+      </div>
+      <span id="pd1h-status-badge" class="card-badge">LOADING</span>
+    </div>
+    <div class="strat-body">
+      <div class="strat-metrics">
+        <div class="sm-item">
+          <div class="sm-label">Combined PnL</div>
+          <div class="sm-value" id="pd1h-combined" style="color:var(--accent)">—</div>
+        </div>
+        <div class="sm-item">
+          <div class="sm-label">Target</div>
+          <div class="sm-value" style="color:var(--accent)">$500</div>
+        </div>
+        <div class="sm-item">
+          <div class="sm-label">Gate</div>
+          <div class="sm-value" style="color:var(--danger)">−$300</div>
+        </div>
+        <div class="sm-item">
+          <div class="sm-label">Open Positions</div>
+          <div class="sm-value" id="pd1h-pos-count">—</div>
+        </div>
+      </div>
+
+      <!-- Zone display -->
+      <div style="margin-bottom:12px;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Today's Squeeze Zone</div>
+        <div class="zone-track" id="pd1h-zone-track">
+          <div class="zone-band" id="pd1h-zone-band" style="display:none;"></div>
+          <div class="zone-high-line" id="pd1h-high-line" style="display:none;top:20%"></div>
+          <div class="zone-low-line" id="pd1h-low-line" style="display:none;bottom:20%"></div>
+          <div class="zone-price-line" id="pd1h-price-line" style="top:50%"></div>
+          <span class="zone-label zone-label-high" id="pd1h-high-label">—</span>
+          <span class="zone-label zone-label-low" id="pd1h-low-label">—</span>
+        </div>
+        <div class="zone-row"><span class="zone-k">Zone High</span><span class="zone-v" id="pd1h-zone-high">—</span></div>
+        <div class="zone-row"><span class="zone-k">Zone Low</span><span class="zone-v" id="pd1h-zone-low">—</span></div>
+        <div class="zone-row"><span class="zone-k">Zone Range</span><span class="zone-v" id="pd1h-zone-range">—</span></div>
+        <div class="zone-row"><span class="zone-k">Price vs Zone</span><span class="zone-v" id="pd1h-price-dist">—</span></div>
+        <div class="zone-row"><span class="zone-k">Source</span><span class="zone-v" id="pd1h-zone-src">—</span></div>
+      </div>
+
+      <!-- Combined PnL meter -->
+      <div class="combined-meter">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Combined PnL Progress</div>
+        <div class="cm-value" id="pd1h-cm-value" style="color:var(--muted)">$0.00</div>
+        <div class="cm-bar">
+          <div class="cm-fill" id="pd1h-cm-fill" style="width:50%;"></div>
+          <div class="cm-gate-marker" style="left:17%"></div>
+          <div class="cm-target-marker" style="left:83%"></div>
+        </div>
+        <div class="cm-labels">
+          <span class="cm-gate">Gate −$300</span>
+          <span>$0</span>
+          <span class="cm-target">Target +$500</span>
+        </div>
+      </div>
+
+      <!-- Long positions -->
+      <div style="margin-top:12px;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">
+          Longs <span id="pd1h-long-count" style="color:var(--success);font-family:var(--mono);">0</span>
+          &nbsp;&nbsp;Shorts <span id="pd1h-short-count" style="color:var(--danger);font-family:var(--mono);">0</span>
+          &nbsp;&nbsp;Lot/side <span id="pd1h-lot-total" style="color:var(--accent);font-family:var(--mono);">0.00</span>
+        </div>
+        <div id="pd1h-positions" class="pos-list">
+          <div class="no-pos"><div class="no-pos-icon">◎</div><div>No open positions</div><div style="font-size:10px;margin-top:3px;">Waiting for zone touch</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SESSION STRATEGY ═══ -->
+  <div class="strat-card strat-sess">
+    <div class="strat-hdr">
+      <div>
+        <div class="strat-name">Session Squeeze Straddle</div>
+        <div class="strat-id">SS-SESS-01 · Asian 00–07 · NY 13–20 London</div>
+      </div>
+      <span id="sess-status-badge" class="card-badge">LOADING</span>
+    </div>
+    <div class="strat-body">
+      <div class="strat-metrics">
+        <div class="sm-item">
+          <div class="sm-label">Combined PnL</div>
+          <div class="sm-value" id="sess-combined" style="color:var(--gold)">—</div>
+        </div>
+        <div class="sm-item">
+          <div class="sm-label">Active Session</div>
+          <div class="sm-value" id="sess-active-name" style="color:var(--gold)">—</div>
+        </div>
+        <div class="sm-item">
+          <div class="sm-label">Target</div>
+          <div class="sm-value" style="color:var(--accent)">$500</div>
+        </div>
+        <div class="sm-item">
+          <div class="sm-label">Open Positions</div>
+          <div class="sm-value" id="sess-pos-count">—</div>
+        </div>
+      </div>
+
+      <!-- Session tabs -->
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button class="sess-tab active" id="tab-asian" onclick="switchSessTab('asian')">Asian Session</button>
+        <button class="sess-tab" id="tab-ny" onclick="switchSessTab('ny')">NY Session</button>
+      </div>
+      <style>
+        .sess-tab{background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:11px;font-family:var(--mono);padding:4px 12px;border-radius:4px;cursor:pointer;}
+        .sess-tab.active{border-color:var(--gold);color:var(--gold);background:rgba(251,191,36,.05);}
+      </style>
+
+      <!-- Asian tab -->
+      <div id="panel-asian">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Asian Zone (from prior NY bars)</div>
+        <div class="zone-track" id="asian-zone-track">
+          <div class="zone-band" id="asian-zone-band" style="display:none;"></div>
+          <div class="zone-high-line" id="asian-high-line" style="display:none;top:20%"></div>
+          <div class="zone-low-line" id="asian-low-line" style="display:none;bottom:20%"></div>
+          <div class="zone-price-line" id="asian-price-line" style="top:50%"></div>
+        </div>
+        <div class="zone-row"><span class="zone-k">Zone High</span><span class="zone-v" id="asian-zone-high">—</span></div>
+        <div class="zone-row"><span class="zone-k">Zone Low</span><span class="zone-v" id="asian-zone-low">—</span></div>
+        <div class="zone-row"><span class="zone-k">Range</span><span class="zone-v" id="asian-zone-range">—</span></div>
+        <div class="zone-row"><span class="zone-k">Price dist</span><span class="zone-v" id="asian-price-dist">—</span></div>
+        <div class="cm-value" id="asian-cm-value" style="color:var(--muted);font-size:18px;margin:8px 0 2px;">$0.00</div>
+        <div class="cm-bar">
+          <div class="cm-fill" id="asian-cm-fill" style="width:50%;"></div>
+          <div class="cm-gate-marker" style="left:17%"></div>
+          <div class="cm-target-marker" style="left:83%"></div>
+        </div>
+        <div class="cm-labels"><span class="cm-gate">−$300</span><span>$0</span><span class="cm-target">+$500</span></div>
+        <div style="margin-top:10px;font-size:10px;color:var(--muted);margin-bottom:5px;">
+          Longs <span id="asian-long-count" style="color:var(--success);">0</span>
+          Shorts <span id="asian-short-count" style="color:var(--danger);">0</span>
+        </div>
+        <div id="asian-positions" class="pos-list">
+          <div class="no-pos"><div>No Asian positions</div></div>
+        </div>
+      </div>
+
+      <!-- NY tab -->
+      <div id="panel-ny" style="display:none;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">NY Zone (from today's London bars)</div>
+        <div class="zone-track" id="ny-zone-track">
+          <div class="zone-band" id="ny-zone-band" style="display:none;"></div>
+          <div class="zone-high-line" id="ny-high-line" style="display:none;top:20%"></div>
+          <div class="zone-low-line" id="ny-low-line" style="display:none;bottom:20%"></div>
+          <div class="zone-price-line" id="ny-price-line" style="top:50%"></div>
+        </div>
+        <div class="zone-row"><span class="zone-k">Zone High</span><span class="zone-v" id="ny-zone-high">—</span></div>
+        <div class="zone-row"><span class="zone-k">Zone Low</span><span class="zone-v" id="ny-zone-low">—</span></div>
+        <div class="zone-row"><span class="zone-k">Range</span><span class="zone-v" id="ny-zone-range">—</span></div>
+        <div class="zone-row"><span class="zone-k">Price dist</span><span class="zone-v" id="ny-price-dist">—</span></div>
+        <div class="cm-value" id="ny-cm-value" style="color:var(--muted);font-size:18px;margin:8px 0 2px;">$0.00</div>
+        <div class="cm-bar">
+          <div class="cm-fill" id="ny-cm-fill" style="width:50%;"></div>
+          <div class="cm-gate-marker" style="left:17%"></div>
+          <div class="cm-target-marker" style="left:83%"></div>
+        </div>
+        <div class="cm-labels"><span class="cm-gate">−$300</span><span>$0</span><span class="cm-target">+$500</span></div>
+        <div style="margin-top:10px;font-size:10px;color:var(--muted);margin-bottom:5px;">
+          Longs <span id="ny-long-count" style="color:var(--success);">0</span>
+          Shorts <span id="ny-short-count" style="color:var(--danger);">0</span>
+        </div>
+        <div id="ny-positions" class="pos-list">
+          <div class="no-pos"><div>No NY positions</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SIGNAL LOG ═══ -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Live Signal Log</span>
+      <span id="sig-count-badge" class="card-badge">0 today</span>
+    </div>
+    <div class="card-body" style="padding:10px 12px;">
+      <div class="signal-log" id="signal-log">
+        <div class="empty-state loading">Connecting to signal stream…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TODAY'S SESSIONS SUMMARY ═══ -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Today's Session Results</span>
+      <span id="daily-pnl-badge" class="card-badge">—</span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <div class="sm-item">
+          <div class="sm-label">PD1H Today</div>
+          <div class="sm-value" id="day-pd1h-pnl" style="color:var(--accent)">—</div>
+        </div>
+        <div class="sm-item">
+          <div class="sm-label">SESSION Today</div>
+          <div class="sm-value" id="day-sess-pnl" style="color:var(--gold)">—</div>
+        </div>
+        <div class="sm-item">
+          <div class="sm-label">PD1H Exits</div>
+          <div class="sm-value" id="day-pd1h-exits">—</div>
+        </div>
+        <div class="sm-item">
+          <div class="sm-label">SESSION Exits</div>
+          <div class="sm-value" id="day-sess-exits">—</div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Closed Sessions Today</div>
+      <div id="session-history" class="pos-list">
+        <div class="empty-state" style="padding:16px;">No closed sessions yet today</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TRADE HISTORY ═══ -->
+  <div class="card span-2">
+    <div class="card-header">
+      <span class="card-title">Recent Trades</span>
+      <span id="trade-count-badge" class="card-badge">last 20</span>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <div style="overflow-x:auto;">
+        <table class="hist-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Strategy</th>
+              <th>Session</th>
+              <th>Side</th>
+              <th>Entry</th>
+              <th>Exit</th>
+              <th>Lots</th>
+              <th>PnL</th>
+              <th>Exit Reason</th>
+            </tr>
+          </thead>
+          <tbody id="trade-history-body">
+            <tr><td colspan="9" class="empty-state" style="padding:24px;">No completed trades yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SERVICE STATUS ═══ -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Service Status</span>
+      <span id="svc-last-check" class="card-badge">—</span>
+    </div>
+    <div class="card-body">
+      <div class="svc-row" id="svc-straddle-engine">
+        <div class="svc-left">
+          <div class="svc-dot dot-dim" id="dot-se"></div>
+          <div>
+            <div class="svc-name">Straddle Engine</div>
+            <div class="svc-detail" id="detail-se">cws-straddle-engine-dev</div>
+          </div>
+        </div>
+        <span id="state-se" style="font-family:var(--mono);font-size:11px;color:var(--dim);">—</span>
+      </div>
+      <div class="svc-row" id="svc-cre-straddle">
+        <div class="svc-left">
+          <div class="svc-dot dot-dim" id="dot-cre"></div>
+          <div>
+            <div class="svc-name">CRE-Straddle-01</div>
+            <div class="svc-detail" id="detail-cre">ALB :8002 → cws-cre-straddle-01-dev</div>
+          </div>
+        </div>
+        <span id="state-cre" style="font-family:var(--mono);font-size:11px;color:var(--dim);">—</span>
+      </div>
+      <div class="svc-row">
+        <div class="svc-left">
+          <div class="svc-dot dot-dim" id="dot-feed"></div>
+          <div>
+            <div class="svc-name">cTrader Feed</div>
+            <div class="svc-detail" id="detail-feed">demo.ctraderapi.com:5035 · XAUUSD</div>
+          </div>
+        </div>
+        <span id="state-feed" style="font-family:var(--mono);font-size:11px;color:var(--dim);">—</span>
+      </div>
+      <div class="svc-row">
+        <div class="svc-left">
+          <div class="svc-dot dot-dim" id="dot-broker"></div>
+          <div>
+            <div class="svc-name">Pepperstone Demo</div>
+            <div class="svc-detail" id="detail-broker">CBA 7 · Account 47167724</div>
+          </div>
+        </div>
+        <span id="state-broker" style="font-family:var(--mono);font-size:11px;color:var(--dim);">—</span>
+      </div>
+
+      <div style="margin-top:12px;padding:10px;background:var(--bg3);border-radius:5px;border:1px solid var(--border);">
+        <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">EQUITY · CBA 7</div>
+        <div style="font-family:var(--mono);font-size:20px;font-weight:600;color:var(--success);" id="equity-value">—</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;" id="equity-sub">—</div>
+      </div>
+
+      <div style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:5px;border:1px solid var(--border);">
+        <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">HEARTBEAT · Last bar processed</div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--muted);" id="heartbeat-val">—</div>
+      </div>
+
+      <!-- FTMO compliance -->
+      <div style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:5px;border:1px solid var(--border);">
+        <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">FTMO COMPLIANCE · Daily loss tracker</div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">
+          <span style="color:var(--muted);">Daily loss so far</span>
+          <span style="font-family:var(--mono);color:var(--text);" id="ftmo-daily-loss">—</span>
+        </div>
+        <div style="height:5px;background:var(--bg);border-radius:3px;overflow:hidden;">
+          <div id="ftmo-bar" style="height:100%;border-radius:3px;background:var(--success);width:0%;transition:width .3s,background .3s;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--dim);margin-top:3px;">
+          <span>$0</span>
+          <span style="color:var(--warn);">WARN $4,000</span>
+          <span style="color:var(--danger);">HALT $4,750</span>
+          <span>$5,000</span>
+        </div>
+        <div style="font-size:10px;font-family:var(--mono);margin-top:4px;" id="ftmo-status">Status: <span style="color:var(--success);">NORMAL</span></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end .main -->
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <div class="sb-item"><span class="sb-dot sb-dim" id="sb-api-dot"></span><span id="sb-api-text">API: not connected</span></div>
+  <div class="sb-item"><span class="sb-dot sb-dim" id="sb-pos-dot"></span><span id="sb-pos-text">Positions: —</span></div>
+  <div class="sb-item"><span class="sb-dot sb-dim" id="sb-se-dot"></span><span id="sb-se-text">SE: —</span></div>
+  <div class="sb-item">Last update: <span id="sb-last-update">—</span></div>
+  <div class="sb-item" style="margin-left:auto;color:var(--muted);">SS-PD1H-01 + SS-SESS-01 · XAU/USD · Phase 1 (0.01 lot)</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════
+const CRE_URL_KEY = 'cws_cre_straddle_url';
+const SE_URL_KEY  = 'cws_straddle_engine_url';
+
+let CRE_BASE = localStorage.getItem(CRE_URL_KEY) || '';
+let SE_BASE  = localStorage.getItem(SE_URL_KEY)  || '';
+
+// API endpoints — adjust to match actual straddle-engine API paths
+const API = {
+  creHealth    : () => `${CRE_BASE}/health`,
+  seHealth     : () => `${SE_BASE}/health`,
+  positions    : () => `${SE_BASE}/v1/positions`,
+  strategyState: (sid) => `${SE_BASE}/v1/strategy/${sid}/state`,
+  signals      : () => `${SE_BASE}/v1/signals/recent?limit=50`,
+  trades       : () => `${SE_BASE}/v1/trades/recent?limit=20`,
+  balance      : () => `${CRE_BASE}/v1/balance/47167724`,
+};
+
+const REFRESH_INTERVAL = 5;
+let countdown = REFRESH_INTERVAL;
+let refreshTimer = null;
+let lastPrice = null;
+let signalLog = [];
+let currentSessTab = 'asian';
+
+// init URL inputs
+const apiInput = document.getElementById('api-base-input');
+if(apiInput) apiInput.value = CRE_BASE || SE_BASE || '';
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const fmt = (v, d=2) => v == null ? '—' : Number(v).toFixed(d);
+const fmtPrice = v => v == null ? '——' : Number(v).toFixed(2);
+const fmtPnl = v => v == null ? '—' : (v >= 0 ? '+$' : '-$') + Math.abs(v).toFixed(2);
+const pnlColor = v => v == null ? 'var(--muted)' : v >= 0 ? 'var(--success)' : 'var(--danger)';
+const fmtTime = ts => {
+  if(!ts) return '—';
+  try { return new Date(ts).toUTCString().slice(5,22) + ' UTC'; } catch { return ts; }
+};
+const fmtTimeShort = ts => {
+  if(!ts) return '—';
+  try { return new Date(ts).toUTCString().slice(17,22) + ' UTC'; } catch { return ts; }
+};
+
+function dot(id, cls){ const el=$(id); if(el){ el.className=`svc-dot ${cls}`; }}
+
+// ═══════════════════════════════════════════
+// BAR COUNTDOWN
+// ═══════════════════════════════════════════
+function updateBarCountdown(){
+  const now = Date.now();
+  const barMs = 5 * 60 * 1000;
+  const elapsed = now % barMs;
+  const remaining = barMs - elapsed;
+  const mm = Math.floor(remaining / 60000);
+  const ss = Math.floor((remaining % 60000) / 1000);
+  if($('bar-countdown')) $('bar-countdown').textContent = `${mm}:${ss.toString().padStart(2,'0')}`;
+  if($('bar-prog')) $('bar-prog').style.width = ((elapsed/barMs)*100).toFixed(1) + '%';
+  const nextBar = new Date(now - elapsed + barMs);
+  if($('bar-next')) $('bar-next').textContent = 'Next: ' + nextBar.toUTCString().slice(17,22) + ' UTC';
+}
+setInterval(updateBarCountdown, 1000);
+updateBarCountdown();
+
+// ═══════════════════════════════════════════
+// SESSION CLOCK (London local)
+// ═══════════════════════════════════════════
+function getLondonHour(){
+  const now = new Date();
+  const londonStr = now.toLocaleString('en-GB', {timeZone:'Europe/London', hour:'numeric', hour12:false});
+  return parseInt(londonStr, 10);
+}
+function getLondonUtcOffset(){
+  // Returns 1 for BST, 0 for GMT
+  const janOffset = new Date(Date.UTC(2025, 0, 1)).getTimezoneOffset();
+  const julyOffset = new Date(Date.UTC(2025, 6, 1)).getTimezoneOffset();
+  const isDST = new Date().getTimezoneOffset() < Math.max(janOffset, julyOffset);
+  return isDST ? 1 : 0;
+}
+function updateSessionBadges(){
+  const utcHour = new Date().getUTCHours();
+  const offset  = getLondonUtcOffset();
+  const londonH = (utcHour + offset) % 24;
+
+  const inPD1H  = utcHour >= 7 && utcHour < 17;
+  const inAsian = londonH >= 0 && londonH < 7;
+  const inNY    = londonH >= 13 && londonH < 20;
+
+  function setBadge(id, stateId, active, label){
+    const el = $(id);
+    if(el){
+      el.className = `sess-badge ${active ? 'sess-active' : 'sess-inactive'}`;
+    }
+    const st = $(stateId);
+    if(st) st.textContent = active ? label : 'CLOSED';
+  }
+  setBadge('sess-pd1h', 'sess-pd1h-state', inPD1H, 'ACTIVE');
+  setBadge('sess-asian', 'sess-asian-state', inAsian, 'ACTIVE');
+  setBadge('sess-ny', 'sess-ny-state', inNY, 'ACTIVE');
+}
+setInterval(updateSessionBadges, 30000);
+updateSessionBadges();
+
+// ═══════════════════════════════════════════
+// SESSION TAB SWITCH
+// ═══════════════════════════════════════════
+function switchSessTab(tab){
+  currentSessTab = tab;
+  ['asian','ny'].forEach(t => {
+    $(`tab-${t}`).classList.toggle('active', t === tab);
+    $(`panel-${t}`).style.display = t === tab ? 'block' : 'none';
+  });
+}
+
+// ═══════════════════════════════════════════
+// ZONE VISUALISATION
+// ═══════════════════════════════════════════
+function updateZoneVisual(prefix, high, low, price){
+  if(!high || !low || !price) return;
+  const track = $(`${prefix}-zone-track`);
+  if(!track) return;
+  const h = track.offsetHeight || 56;
+
+  // Extend zone range by 20% for visual
+  const spread = (high - low) * 1.5;
+  const minP = high - spread;
+  const maxP = low  + spread;
+  const range = maxP - minP;
+  if(range <= 0) return;
+
+  const toY = val => ((maxP - val) / range * h);
+  const highY = toY(high);
+  const lowY  = toY(low);
+  const priceY = toY(price);
+  const bandH  = lowY - highY;
+
+  const band = $(`${prefix}-zone-band`);
+  if(band){
+    band.style.display = 'block';
+    band.style.top = highY + 'px';
+    band.style.height = Math.max(bandH, 2) + 'px';
+  }
+  const hl = $(`${prefix}-high-line`);
+  if(hl){ hl.style.display='block'; hl.style.top = highY + 'px'; }
+  const ll = $(`${prefix}-low-line`);
+  if(ll){ ll.style.display='block'; ll.style.top = lowY + 'px'; }
+  const pl = $(`${prefix}-price-line`);
+  if(pl){ pl.style.top = Math.max(0, Math.min(h-2, priceY)) + 'px'; }
+
+  // Labels
+  const hl2 = $(`${prefix}-high-label`);
+  if(hl2){ hl2.textContent = fmtPrice(high); hl2.style.top = Math.max(0, highY-12) + 'px'; }
+  const ll2 = $(`${prefix}-low-label`);
+  if(ll2){ ll2.textContent = fmtPrice(low); ll2.style.bottom = Math.max(0, h-lowY-12) + 'px'; }
+}
+
+function updatePriceDistance(prefix, high, low, price){
+  const el = $(`${prefix}-price-dist`);
+  if(!el || !high || !low || !price) return;
+  if(price >= high){
+    el.innerHTML = `${fmtPrice(price)} <span class="dist-tag dist-above">+${(price-high).toFixed(2)} above zone</span>`;
+  } else if(price <= low){
+    el.innerHTML = `${fmtPrice(price)} <span class="dist-tag dist-below">${(price-low).toFixed(2)} below zone</span>`;
+  } else {
+    const distH = (high - price).toFixed(2);
+    const distL = (price - low).toFixed(2);
+    el.innerHTML = `${fmtPrice(price)} <span class="dist-tag dist-inside">inside zone · ${distL}↑ ${distH}↓</span>`;
+  }
+}
+
+// ═══════════════════════════════════════════
+// COMBINED PnL METER
+// ═══════════════════════════════════════════
+function updateCombinedMeter(prefix, combined){
+  const fill = $(`${prefix}-cm-fill`);
+  const val  = $(`${prefix}-cm-value`);
+  if(!fill || !val) return;
+
+  // Scale: gate=-300 at 0%, zero at 37.5% (300/800), target=500 at 100% (800 range)
+  // Map combined to 0-100%: pct = (combined + 300) / 800 * 100
+  const pct = Math.max(0, Math.min(100, (combined + 300) / 800 * 100));
+  fill.style.width = pct + '%';
+  fill.className = `cm-fill ${combined >= 0 ? 'cm-fill-pos' : 'cm-fill-neg'}`;
+  val.textContent = fmtPnl(combined);
+  val.style.color = pnlColor(combined);
+}
+
+// ═══════════════════════════════════════════
+// RENDER POSITIONS
+// ═══════════════════════════════════════════
+function renderPositionList(containerId, positions, price){
+  const el = $(containerId);
+  if(!el) return;
+  if(!positions || positions.length === 0){
+    el.innerHTML = '<div class="no-pos"><div class="no-pos-icon">◎</div><div style="font-size:11px;">No open positions</div></div>';
+    return;
+  }
+  const longs  = positions.filter(p => p.side === 'long'  || p.direction === 'long');
+  const shorts = positions.filter(p => p.side === 'short' || p.direction === 'short');
+  const all = [...longs, ...shorts];
+
+  el.innerHTML = all.map(p => {
+    const isLong = (p.side || p.direction) === 'long';
+    const entry  = parseFloat(p.entry_price || p.fill_price || 0);
+    const qty    = parseFloat(p.lot || p.quantity || 0);
+    const pnl    = price && entry && qty ?
+      (isLong ? (price - entry) : (entry - price)) * qty * 100 : null;
+    const pnlStr = pnl != null ? fmtPnl(pnl) : '—';
+    const posId  = (p.position_id || p.id || '').slice(0, 8);
+    const brkId  = p.broker_position_id || p.broker_order_id || '—';
+    const openAt = fmtTimeShort(p.opened_at || p.filled_at);
+    return `
+    <div class="pos-card pos-${isLong ? 'long' : 'short'}" style="margin-bottom:6px;">
+      <div class="pos-card-hdr">
+        <div>
+          <span class="pos-side-label" style="color:${isLong?'var(--success)':'var(--danger)'}">
+            ${isLong ? '▲ LONG' : '▼ SHORT'}
+          </span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--dim);margin-left:8px;">${posId}… · ${brkId}</span>
+        </div>
+        <span class="pos-pnl ${pnl>=0?'pnl-pos':'pnl-neg'}">${pnlStr}</span>
+      </div>
+      <div class="pos-body">
+        <div><div class="pf-label">Entry</div><div class="pf-value">${fmtPrice(entry)}</div></div>
+        <div><div class="pf-label">Qty</div><div class="pf-value" style="color:var(--accent)">${qty} lot</div></div>
+        <div><div class="pf-label">Opened</div><div class="pf-value" style="font-size:10px;">${openAt}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════
+// RENDER SIGNAL LOG
+// ═══════════════════════════════════════════
+const SIG_ICONS = {
+  'ADD_LONG'    : {cls:'si-long', ico:'▲'},
+  'ADD_SHORT'   : {cls:'si-short', ico:'▼'},
+  'TARGET_HIT'  : {cls:'si-close-target', ico:'✓'},
+  'INTRABAR_GATE':{cls:'si-close-gate', ico:'⚡'},
+  'SESSION_END' : {cls:'si-close-sess', ico:'◼'},
+  'ZONE_SET'    : {cls:'si-zone', ico:'⊞'},
+  'SESSION_START':{cls:'si-zone', ico:'▶'},
+  'ZONE_DEGENERATE':{cls:'si-info', ico:'⚠'},
+  'default'     : {cls:'si-info', ico:'•'}
+};
+
+function addSignalLog(entry){
+  signalLog.unshift(entry);
+  if(signalLog.length > 50) signalLog = signalLog.slice(0, 50);
+  renderSignalLog();
+}
+
+function renderSignalLog(){
+  const el = $('signal-log');
+  if(!el) return;
+  if(signalLog.length === 0){
+    el.innerHTML = '<div class="empty-state">No signals yet today</div>';
+    return;
+  }
+  el.innerHTML = signalLog.map(s => {
+    const icon = SIG_ICONS[s.type] || SIG_ICONS['default'];
+    return `
+    <div class="sig-entry">
+      <div class="sig-icon ${icon.cls}">${icon.ico}</div>
+      <div class="sig-content">
+        <div class="sig-type">${s.type || '—'}</div>
+        <div class="sig-detail">${s.detail || ''}</div>
+      </div>
+      <div class="sig-time">${s.time || '—'}</div>
+    </div>`;
+  }).join('');
+  if($('sig-count-badge')) $('sig-count-badge').textContent = `${signalLog.length} today`;
+}
+
+// ═══════════════════════════════════════════
+// RENDER TRADE HISTORY
+// ═══════════════════════════════════════════
+function renderTradeHistory(trades){
+  const el = $('trade-history-body');
+  if(!el) return;
+  if(!trades || trades.length === 0){
+    el.innerHTML = '<tr><td colspan="9" class="empty-state" style="padding:24px;text-align:center;">No completed trades yet</td></tr>';
+    return;
+  }
+  el.innerHTML = trades.map(t => {
+    const pnl = parseFloat(t.pnl || t.realised_pnl || 0);
+    const pnlCls = pnl >= 0 ? 'pnl-green' : 'pnl-red';
+    const exitTag = t.exit_reason === 'TARGET_HIT' ? 'tag-target' :
+                    t.exit_reason === 'INTRABAR_GATE' ? 'tag-gate' : 'tag-sess';
+    const sideTag = (t.side||t.direction) === 'long' ? 'tag-long' : 'tag-short';
+    return `<tr>
+      <td>${fmtTimeShort(t.exit_time || t.closed_at)}</td>
+      <td style="color:var(--muted);">${(t.strategy_id||'').replace('SS-','')}</td>
+      <td style="color:var(--muted);">${t.session_name || '—'}</td>
+      <td><span class="tag ${sideTag}">${(t.side||t.direction||'').toUpperCase()}</span></td>
+      <td>${fmtPrice(t.entry_price)}</td>
+      <td>${fmtPrice(t.exit_price)}</td>
+      <td style="color:var(--accent);">${fmt(t.lot||t.quantity)} lot</td>
+      <td class="${pnlCls}">${fmtPnl(pnl)}</td>
+      <td><span class="tag ${exitTag}">${t.exit_reason||'—'}</span></td>
+    </tr>`;
+  }).join('');
+  if($('trade-count-badge')) $('trade-count-badge').textContent = `last ${trades.length}`;
+}
+
+// ═══════════════════════════════════════════
+// RENDER STRATEGY STATE
+// ═══════════════════════════════════════════
+function renderStrategyState(sid, state, price){
+  const isPD1H = sid === 'SS-PD1H-01';
+  const prefix  = isPD1H ? 'pd1h' : '';
+
+  if(!state) return;
+
+  // Zone
+  const zone = state.zone;
+  if(zone){
+    const high = parseFloat(zone.high || 0);
+    const low  = parseFloat(zone.low  || 0);
+    const rng  = (high - low).toFixed(2);
+
+    if(isPD1H){
+      if($('pd1h-zone-high')) $('pd1h-zone-high').textContent = fmtPrice(high);
+      if($('pd1h-zone-low'))  $('pd1h-zone-low').textContent  = fmtPrice(low);
+      if($('pd1h-zone-range')) $('pd1h-zone-range').textContent = `$${rng}`;
+      if($('pd1h-zone-src'))  $('pd1h-zone-src').textContent  = zone.source || '—';
+      updateZoneVisual('pd1h', high, low, price);
+      updatePriceDistance('pd1h', high, low, price);
+    }
+
+    // SESSION sessions
+    const sessions = state.sessions || {};
+    ['asian','ny'].forEach(sess => {
+      const sd = sessions[sess] || sessions[sess.toUpperCase()];
+      if(!sd) return;
+      const sh = parseFloat(sd.zone?.high || 0);
+      const sl = parseFloat(sd.zone?.low  || 0);
+      if($(`${sess}-zone-high`)) $(`${sess}-zone-high`).textContent = fmtPrice(sh);
+      if($(`${sess}-zone-low`))  $(`${sess}-zone-low`).textContent  = fmtPrice(sl);
+      if($(`${sess}-zone-range`)) $(`${sess}-zone-range`).textContent = `$${(sh-sl).toFixed(2)}`;
+      updateZoneVisual(sess, sh, sl, price);
+      updatePriceDistance(sess, sh, sl, price);
+
+      // Combined PnL per session
+      const combined = parseFloat(sd.combined_pnl ?? 0);
+      updateCombinedMeter(sess, combined);
+
+      // Positions per session
+      const spos = sd.positions || [];
+      const longs  = spos.filter(p=>(p.side||p.direction)==='long').length;
+      const shorts  = spos.filter(p=>(p.side||p.direction)==='short').length;
+      if($(`${sess}-long-count`))  $(`${sess}-long-count`).textContent  = longs;
+      if($(`${sess}-short-count`)) $(`${sess}-short-count`).textContent = shorts;
+      renderPositionList(`${sess}-positions`, spos, price);
+    });
+  }
+
+  // Combined PnL + positions for PD1H
+  if(isPD1H){
+    const combined = parseFloat(state.combined_pnl ?? 0);
+    updateCombinedMeter('pd1h', combined);
+    if($('pd1h-combined')){ $('pd1h-combined').textContent = fmtPnl(combined); $('pd1h-combined').style.color = pnlColor(combined); }
+
+    const positions = state.positions || [];
+    const longs   = positions.filter(p=>(p.side||p.direction)==='long');
+    const shorts  = positions.filter(p=>(p.side||p.direction)==='short');
+    if($('pd1h-long-count'))  $('pd1h-long-count').textContent  = longs.length;
+    if($('pd1h-short-count')) $('pd1h-short-count').textContent = shorts.length;
+    if($('pd1h-lot-total'))   $('pd1h-lot-total').textContent   = (longs.length * 0.01).toFixed(2);
+    if($('pd1h-pos-count'))   $('pd1h-pos-count').textContent   = positions.length;
+    renderPositionList('pd1h-positions', positions, price);
+
+    // Status badge
+    const badge = $('pd1h-status-badge');
+    if(badge){
+      if(state.status === 'ACTIVE') { badge.style.background='rgba(0,212,170,.1)'; badge.style.color='var(--accent)'; badge.style.border='1px solid rgba(0,212,170,.25)'; badge.textContent='ACTIVE'; }
+      else if(state.status === 'WAITING') { badge.style.background='var(--bg)'; badge.style.color='var(--muted)'; badge.textContent='WAITING'; }
+      else { badge.textContent = state.status || 'UNKNOWN'; }
+    }
+  } else {
+    // SESSION combined
+    const combined = parseFloat(state.combined_pnl ?? 0);
+    if($('sess-combined')){ $('sess-combined').textContent = fmtPnl(combined); $('sess-combined').style.color = pnlColor(combined); }
+    if($('sess-active-name')) $('sess-active-name').textContent = state.active_session || 'NONE';
+    const positions = state.positions || [];
+    if($('sess-pos-count')) $('sess-pos-count').textContent = positions.length;
+
+    const badge = $('sess-status-badge');
+    if(badge){
+      const sess = state.active_session;
+      if(sess){ badge.style.background='rgba(251,191,36,.1)'; badge.style.color='var(--gold)'; badge.style.border='1px solid rgba(251,191,36,.25)'; badge.textContent=sess+' ACTIVE'; }
+      else { badge.style.background='var(--bg)'; badge.style.color='var(--muted)'; badge.textContent='BETWEEN SESSIONS'; }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════
+// FETCH
+// ═══════════════════════════════════════════
+let lastPrice_ = null;
+
+async function safeGet(url){
+  try {
+    const r = await fetch(url, {signal: AbortSignal.timeout(5000)});
+    if(!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+async function fetchCREHealth(){
+  if(!CRE_BASE) return null;
+  const d = await safeGet(API.creHealth());
+  const ok = d && (d.status === 'ok' || d.status === 'healthy');
+  dot('dot-cre', ok ? 'dot-ok' : 'dot-err');
+  if($('state-cre')) $('state-cre').textContent = ok ? 'healthy' : 'unreachable';
+  return ok;
+}
+
+async function fetchSEHealth(){
+  if(!SE_BASE) return null;
+  const d = await safeGet(API.seHealth());
+  const ok = d && (d.status === 'ok' || d.status === 'healthy');
+  dot('dot-se', ok ? 'dot-ok' : 'dot-err');
+  if($('state-se')) $('state-se').textContent = ok ? 'healthy' : 'unreachable';
+  if($('sb-se-text')) $('sb-se-text').textContent = `SE: ${ok ? 'online' : 'offline'}`;
+  if($('sb-se-dot')) $('sb-se-dot').className = `sb-dot ${ok ? 'sb-ok' : 'sb-err'}`;
+  // Heartbeat from health payload
+  if(d?.last_bar_time && $('heartbeat-val')){
+    $('heartbeat-val').textContent = fmtTime(d.last_bar_time);
+  }
+  // Feed status
+  if(d?.tick_feed_connected !== undefined){
+    dot('dot-feed', d.tick_feed_connected ? 'dot-ok' : 'dot-warn');
+    if($('state-feed')) $('state-feed').textContent = d.tick_feed_connected ? 'connected' : 'reconnecting';
+  }
+  return ok;
+}
+
+async function fetchBalance(){
+  if(!CRE_BASE) return;
+  const d = await safeGet(API.balance());
+  if(!d) return;
+  const equity = parseFloat(d.equity || d.balance || 0);
+  if($('equity-value')) $('equity-value').textContent = equity > 0 ? `$${equity.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '—';
+  if($('equity-sub')) $('equity-sub').textContent = `Pepperstone demo · ${fmtTime(d.as_of || d.timestamp)}`;
+  dot('dot-broker', equity > 0 ? 'dot-ok' : 'dot-warn');
+  if($('state-broker')) $('state-broker').textContent = equity > 0 ? `$${equity.toLocaleString()}` : 'unknown';
+
+  // FTMO daily loss
+  const dailyLoss = parseFloat(d.daily_loss_usd || 0);
+  if($('ftmo-daily-loss')) $('ftmo-daily-loss').textContent = dailyLoss > 0 ? `-$${dailyLoss.toFixed(2)}` : '$0.00';
+  const pct = Math.min(100, (dailyLoss / 5000) * 100);
+  if($('ftmo-bar')){
+    $('ftmo-bar').style.width = pct + '%';
+    $('ftmo-bar').style.background = dailyLoss >= 4750 ? 'var(--danger)' : dailyLoss >= 4000 ? 'var(--warn)' : 'var(--success)';
+  }
+  const ftmoStatus = dailyLoss >= 4750 ? '<span style="color:var(--danger)">HALTED</span>' :
+                     dailyLoss >= 4000 ? '<span style="color:var(--warn)">WARNED</span>' :
+                                         '<span style="color:var(--success)">NORMAL</span>';
+  if($('ftmo-status')) $('ftmo-status').innerHTML = `Status: ${ftmoStatus} · Daily: -$${dailyLoss.toFixed(2)}`;
+}
+
+async function fetchStrategyStates(){
+  if(!SE_BASE) return;
+  // Fetch PD1H state
+  const pd1h = await safeGet(API.strategyState('SS-PD1H-01'));
+  // Fetch SESSION state
+  const sess = await safeGet(API.strategyState('SS-SESS-01'));
+  // Get current price from either state
+  const price = parseFloat(pd1h?.price?.mid || sess?.price?.mid || lastPrice_ || 0);
+  if(price) updatePriceDisplay(price, pd1h?.price);
+  if(pd1h) renderStrategyState('SS-PD1H-01', pd1h, price);
+  if(sess) renderStrategyState('SS-SESS-01', sess, price);
+}
+
+async function fetchPositions(){
+  if(!SE_BASE) return;
+  const d = await safeGet(API.positions());
+  if(!d) return;
+  const total = (d.positions || d).length || 0;
+  if($('sb-pos-text')) $('sb-pos-text').textContent = `Positions: ${total} open`;
+  if($('sb-pos-dot')) $('sb-pos-dot').className = `sb-dot ${total > 0 ? 'sb-ok' : 'sb-dim'}`;
+}
+
+async function fetchSignals(){
+  if(!SE_BASE) return;
+  const d = await safeGet(API.signals());
+  if(!d) return;
+  const signals = d.signals || d || [];
+  // Rebuild log from API (replace in-memory)
+  signalLog = signals.map(s => ({
+    type  : s.signal_type || s.type || s.event || 'UNKNOWN',
+    detail: buildSigDetail(s),
+    time  : fmtTimeShort(s.timestamp || s.ts),
+    raw   : s
+  }));
+  renderSignalLog();
+}
+
+function buildSigDetail(s){
+  const parts = [];
+  if(s.strategy_id) parts.push(s.strategy_id);
+  if(s.session_name) parts.push(s.session_name);
+  if(s.price || s.fill_price) parts.push(`@ ${fmtPrice(s.price || s.fill_price)}`);
+  if(s.lot) parts.push(`${s.lot}lot`);
+  if(s.combined_pnl != null) parts.push(`combined=${fmtPnl(s.combined_pnl)}`);
+  if(s.zone_high) parts.push(`zone ${fmtPrice(s.zone_high)}/${fmtPrice(s.zone_low)}`);
+  return parts.join(' · ');
+}
+
+async function fetchTrades(){
+  if(!SE_BASE) return;
+  const d = await safeGet(API.trades());
+  if(!d) return;
+  const trades = d.trades || d || [];
+  renderTradeHistory(trades);
+
+  // Today P&L summary
+  const today = new Date().toISOString().slice(0,10);
+  const todayTrades = trades.filter(t => (t.exit_time||t.closed_at||'').startsWith(today));
+  const pd1hTrades  = todayTrades.filter(t => t.strategy_id === 'SS-PD1H-01');
+  const sessTrades  = todayTrades.filter(t => t.strategy_id === 'SS-SESS-01');
+  const sum = arr => arr.reduce((a,t) => a + parseFloat(t.pnl||t.realised_pnl||0), 0);
+  const pd1hPnl = sum(pd1hTrades);
+  const sessPnl = sum(sessTrades);
+  const totalPnl = pd1hPnl + sessPnl;
+
+  if($('day-pd1h-pnl')){ $('day-pd1h-pnl').textContent = fmtPnl(pd1hPnl); $('day-pd1h-pnl').style.color = pnlColor(pd1hPnl); }
+  if($('day-sess-pnl')){ $('day-sess-pnl').textContent = fmtPnl(sessPnl); $('day-sess-pnl').style.color = pnlColor(sessPnl); }
+  if($('day-pd1h-exits')) $('day-pd1h-exits').textContent = pd1hTrades.length + ' exits';
+  if($('day-sess-exits')) $('day-sess-exits').textContent = sessTrades.length + ' exits';
+
+  const dailyBadge = $('daily-pnl-badge');
+  if(dailyBadge){
+    dailyBadge.textContent = fmtPnl(totalPnl) + ' today';
+    dailyBadge.style.color = pnlColor(totalPnl);
+  }
+}
+
+function updatePriceDisplay(price, priceData){
+  if(!price) return;
+  const parts = fmtPrice(price).split('.');
+  if($('price-int')) $('price-int').textContent = parts[0];
+  if($('price-dec')) $('price-dec').textContent = parts[1] || '00';
+  if(lastPrice_ != null){
+    const diff = price - lastPrice_;
+    const pc = $('price-change');
+    if(pc){
+      pc.textContent = (diff >= 0 ? '+' : '') + diff.toFixed(2);
+      pc.className = 'price-change ' + (diff >= 0 ? 'price-up' : 'price-down');
+    }
+  }
+  lastPrice_ = price;
+  if(priceData){
+    if($('bid-val'))    $('bid-val').textContent    = fmtPrice(priceData.bid);
+    if($('ask-val'))    $('ask-val').textContent    = fmtPrice(priceData.ask);
+    if($('spread-val')) $('spread-val').textContent = priceData.spread != null ? priceData.spread.toFixed(2) + ' pts' : '—';
+    if($('bar-time'))   $('bar-time').textContent   = priceData.bar_time ? priceData.bar_time.slice(11,16) + ' UTC' : '—';
+  }
+  // Status bar API dot
+  if($('sb-api-dot')) $('sb-api-dot').className = 'sb-dot sb-ok';
+  if($('sb-api-text')) $('sb-api-text').textContent = 'API: connected';
+  if($('svc-last-check')) $('svc-last-check').textContent = fmtTimeShort(new Date().toISOString());
+  if($('sb-last-update')) $('sb-last-update').textContent = new Date().toUTCString().slice(17,25) + ' UTC';
+}
+
+// ═══════════════════════════════════════════
+// MAIN FETCH LOOP
+// ═══════════════════════════════════════════
+async function fetchAll(){
+  // Run all fetches in parallel
+  await Promise.allSettled([
+    fetchCREHealth(),
+    fetchSEHealth(),
+    fetchStrategyStates(),
+    fetchPositions(),
+    fetchSignals(),
+    fetchTrades(),
+    fetchBalance(),
+  ]);
+}
+
+function onApiChange(val){
+  // Accept either SE URL or CRE URL — try to detect by port
+  if(val.includes(':8002')){
+    CRE_BASE = val.replace(/\/$/, '');
+    localStorage.setItem(CRE_URL_KEY, CRE_BASE);
+  } else {
+    SE_BASE = val.replace(/\/$/, '');
+    localStorage.setItem(SE_URL_KEY, SE_BASE);
+    // Also set CRE as 8002 if SE uses 8080
+    CRE_BASE = SE_BASE.replace(/:\d+/, ':8002');
+    localStorage.setItem(CRE_URL_KEY, CRE_BASE);
+  }
+  fetchAll();
+}
+
+// Countdown timer
+function startCountdown(){
+  clearInterval(refreshTimer);
+  countdown = REFRESH_INTERVAL;
+  refreshTimer = setInterval(() => {
+    countdown--;
+    if($('countdown')) $('countdown').textContent = countdown + 's';
+    if(countdown <= 0){
+      countdown = REFRESH_INTERVAL;
+      fetchAll();
+    }
+  }, 1000);
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  // Prefill API input
+  const apiInput = $('api-base-input');
+  if(apiInput) apiInput.value = SE_BASE || CRE_BASE || '';
+
+  // Show placeholder signals until API connects
+  signalLog = [
+    {type:'ZONE_SET', detail:'SS-PD1H-01 · waiting for first zone…', time:'—'},
+    {type:'SESSION_START', detail:'SS-SESS-01 ASIAN · 00:00 London', time:'—'},
+  ];
+  renderSignalLog();
+
+  fetchAll();
+  startCountdown();
+});
+</script>
+</body>
+</html>
