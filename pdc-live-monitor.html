@@ -1,0 +1,142 @@
+<!doctype html>
+<!--
+  PDC Grid — live monitor (Report #172 / PROMPT-172).
+  Publish to CordiusWealthSystem-Public (GitHub Pages) → https://app.cordius.in/pdc-live-monitor.html
+  Same pattern as straddle-live-monitor.html / aurum-live-monitor.html.
+  Polls the pdc-grid service /state (incl. /health) via the public ALB:
+      https://api.cordius.in/pdc/state
+  Override for local testing:  ?api=http://localhost:8080   (no /pdc prefix locally)
+-->
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PDC Grid — Live</title>
+<style>
+  :root{--bg:#0b0e14;--card:#141a23;--line:#222c3a;--fg:#d7e0ea;--mut:#8493a8;
+        --grn:#27c08a;--red:#ef5a6f;--amb:#e3b341;--blu:#4aa3ff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.45 ui-monospace,Menlo,Consolas,monospace}
+  header{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--line);
+         position:sticky;top:0;background:var(--bg);z-index:2}
+  header h1{font-size:15px;margin:0;letter-spacing:.5px}
+  .sym{color:var(--blu);font-weight:700}
+  .badges{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+  .badge{padding:3px 9px;border-radius:999px;border:1px solid var(--line);font-size:11px}
+  .ok{color:var(--grn);border-color:#1c4a3a}.bad{color:var(--red);border-color:#4a1c25}
+  .wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;padding:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .card h2{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mut)}
+  .kv{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #1b2430}
+  .kv:last-child{border-bottom:0}.kv b{font-weight:600}
+  .big{font-size:30px;font-weight:700;margin:4px 0}
+  .long{color:var(--grn)}.short{color:var(--red)}.mut{color:var(--mut)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:right;padding:5px 7px;border-bottom:1px solid #1b2430}
+  th{color:var(--mut);font-weight:600;text-transform:uppercase;font-size:10px}
+  th:first-child,td:first-child{text-align:left}
+  .pill{padding:1px 6px;border-radius:5px;font-size:11px}
+  .hedged{background:#3a2a12;color:var(--amb)}.bare{background:#13202b;color:var(--blu)}
+  .pend{color:var(--amb)}
+  .ev{display:grid;grid-template-columns:64px 1fr auto;gap:8px;padding:3px 0;border-bottom:1px dashed #1b2430}
+  .ev .t{color:var(--mut)} .full{grid-column:1/-1}
+  footer{padding:10px 18px;color:var(--mut);border-top:1px solid var(--line)}
+  #err{color:var(--red)}
+</style></head>
+<body>
+<header>
+  <h1>PDC&nbsp;GRID <span id="sym" class="sym">—</span></h1>
+  <span id="mode" class="badge">—</span>
+  <div class="badges">
+    <span id="b_conn" class="badge">broker</span>
+    <span id="b_feed" class="badge">feed</span>
+    <span id="b_prime" class="badge">regime</span>
+    <span id="b_sess" class="badge">session</span>
+  </div>
+</header>
+<div class="wrap">
+  <div class="card">
+    <h2>Combined PnL (level basis)</h2>
+    <div id="pnl" class="big mut">—</div>
+    <div class="kv"><span>Open positions</span><b id="nopen">—</b></div>
+    <div class="kv"><span>Hedged</span><b id="nhedge">—</b></div>
+    <div class="kv"><span>Peak positions</span><b id="peak">—</b></div>
+    <div class="kv"><span>Realised</span><b id="realised">—</b></div>
+  </div>
+  <div class="card">
+    <h2>Session</h2>
+    <div class="kv"><span>UTC date</span><b id="s_date">—</b></div>
+    <div class="kv"><span>Status</span><b id="s_status">—</b></div>
+    <div class="kv"><span>PDC</span><b id="s_pdc">—</b></div>
+    <div class="kv"><span>Step</span><b id="s_step">—</b></div>
+    <div class="kv"><span>Unwind level</span><b id="s_unwind">—</b></div>
+    <div class="kv"><span>Allow new / skip</span><b id="s_allow">—</b></div>
+    <div class="kv"><span>Carry</span><b id="s_carry">—</b></div>
+  </div>
+  <div class="card">
+    <h2>EMA Regime (1H 20/50/200)</h2>
+    <div class="kv"><span>Mode</span><b id="r_mode">—</b></div>
+    <div class="kv"><span>EMA fast</span><b id="r_fast">—</b></div>
+    <div class="kv"><span>EMA mid</span><b id="r_mid">—</b></div>
+    <div class="kv"><span>EMA slow</span><b id="r_slow">—</b></div>
+    <div class="kv"><span>Bull / Bear</span><b id="r_bb">—</b></div>
+    <div class="kv"><span>Primed (hours)</span><b id="r_prime">—</b></div>
+  </div>
+  <div class="card" style="grid-column:1/-1">
+    <h2>Open positions</h2>
+    <table><thead><tr><th>Level</th><th>Zone/Side</th><th>Hedged@</th>
+      <th>Position id</th><th>Hedge id</th><th>State</th></tr></thead>
+      <tbody id="pos"><tr><td class="mut full">none</td></tr></tbody></table>
+  </div>
+  <div class="card" style="grid-column:1/-1">
+    <h2>Recent events</h2>
+    <div id="events"><div class="mut">none</div></div>
+  </div>
+</div>
+<footer>api <span id="api">—</span> · account <span id="acct">—</span> · lots <span id="lots">—</span> ·
+  anchor <span id="anchor">—</span> UTC · updated <span id="ts">—</span> · auto-refresh 2s
+  <span id="err"></span></footer>
+<script>
+const API=(new URLSearchParams(location.search).get('api')||'https://api.cordius.in/pdc').replace(/\/$/,'');
+const $=id=>document.getElementById(id);
+const f=(v,d=2)=>v===null||v===undefined?'—':Number(v).toFixed(d);
+const money=v=>v===null||v===undefined?'—':(v>=0?'+$':'-$')+Math.abs(v).toFixed(2);
+function badge(el,ok,label){el.className='badge '+(ok?'ok':'bad');el.textContent=label+(ok?' ✓':' ✗');}
+$('api').textContent=API;
+async function tick(){
+  let s;
+  try{ s=await (await fetch(API+'/state',{cache:'no-store'})).json(); $('err').textContent=''; }
+  catch(e){ $('err').textContent=' · OFFLINE'; return; }
+  if(s.error){ $('err').textContent=' · '+s.error; return; }
+  const h=s.health||{}, g=s.grid||{}, r=s.regime||{}, ses=s.session||{};
+  $('sym').textContent=s.symbol||'—'; $('acct').textContent=s.account||'—';
+  $('lots').textContent=s.lots; $('anchor').textContent=s.anchor||'—'; $('ts').textContent=(s.ts||'').replace('T',' ').slice(0,19);
+  const mode=(g.direction||h.mode||'—');
+  const me=$('mode'); me.textContent='MODE '+mode; me.className='badge '+(mode==='LONG'?'ok':mode==='SHORT'?'bad':'');
+  badge($('b_conn'),h.connected,'broker'); badge($('b_feed'),h.tick_feed_connected,'feed');
+  badge($('b_prime'),h.primed,'regime'); badge($('b_sess'),h.session_active,'session');
+  const p=$('pnl'); const pv=h.combined_pnl;
+  p.textContent=money(pv); p.className='big '+(pv>0?'long':pv<0?'short':'mut');
+  $('nopen').textContent=g.n_open??h.open_positions??'—'; $('nhedge').textContent=g.n_hedged??'—';
+  $('peak').textContent=g.peak_pos??'—'; $('realised').textContent=money(g.realised);
+  $('s_date').textContent=g.session_date||'—'; $('s_status').textContent=g.exit_reason||(h.session_active?'OPEN':'—');
+  $('s_pdc').textContent=f(ses.pdc); $('s_step').textContent=f(ses.step,2); $('s_unwind').textContent=f(g.unwind_level);
+  $('s_allow').textContent=(g.allow_new?'yes':'no')+' / '+(g.skip_day?'SKIP':'no');
+  $('s_carry').textContent=g.is_carry?'CARRY':'no';
+  const rmode=$('r_mode'); rmode.textContent=r.mode||'—'; rmode.className=r.mode==='LONG'?'long':r.mode==='SHORT'?'short':'';
+  $('r_fast').textContent=f(r.ema_fast); $('r_mid').textContent=f(r.ema_mid); $('r_slow').textContent=f(r.ema_slow);
+  $('r_bb').textContent=(r.is_bull?'BULL':r.is_bear?'BEAR':'neutral'); $('r_prime').textContent=r.primed?('yes ('+r.n_hours+')'):'no';
+  const pos=s.positions||[];
+  $('pos').innerHTML = pos.length? pos.map(P=>`<tr>
+     <td>${f(P.level_px)}</td><td>${P.side}</td><td>${P.hedged?f(P.he):'—'}</td>
+     <td>${P.position_id||'—'}</td><td>${P.hedge_position_id||'—'}</td>
+     <td>${P.pending?'<span class="pill pend">pending</span>':P.hedged?'<span class="pill hedged">hedged</span>':'<span class="pill bare">open</span>'}</td>
+   </tr>`).join('') : '<tr><td class="mut full">none</td></tr>';
+  const ev=s.recent||[];
+  $('events').innerHTML = ev.length? ev.map(e=>`<div class="ev">
+     <span class="t">${(e.ts||'').slice(11,19)}</span>
+     <span>${e.kind}${e.level_px!=null?(' @'+f(e.level_px)):''}${e.pos_ref?(' ['+e.pos_ref+']'):''}</span>
+     <span>${e.pnl!=null?money(e.pnl):(e.accepted===false?'rej':'')}</span></div>`).join('')
+     : '<div class="mut">none</div>';
+}
+tick(); setInterval(tick,2000);
+</script>
+</body></html>
