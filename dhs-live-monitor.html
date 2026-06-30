@@ -1,0 +1,187 @@
+<!doctype html>
+<!--
+  DHS Engine — live ops monitor (Report #199 / PROMPT-199).
+  Publish to CordiusWealthSystem-Public (GitHub Pages) → https://app.cordius.in/dhs-live-monitor.html
+  Same pattern as pdc-live-monitor.html. Polls the dhs-engine /state via the
+  public ALB (api-gateway /dhs proxy):
+      https://api.cordius.in/dhs/state
+  Override for local testing:  ?api=http://localhost:8080   (no /dhs prefix locally)
+  Read-only ops view of the AUTOMATED DHS engine (account 47167724, B_SQ30_MH120).
+-->
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DHS Engine — Live</title>
+<style>
+  :root{--bg:#0b0e14;--card:#141a23;--line:#222c3a;--fg:#d7e0ea;--mut:#8493a8;
+        --grn:#27c08a;--red:#ef5a6f;--amb:#e3b341;--blu:#4aa3ff;--pur:#b083f0}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.45 ui-monospace,Menlo,Consolas,monospace}
+  header{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--line);
+         position:sticky;top:0;background:var(--bg);z-index:2}
+  header h1{font-size:15px;margin:0;letter-spacing:.5px}
+  .sym{color:var(--blu);font-weight:700}
+  .badges{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+  .badge{padding:3px 9px;border-radius:999px;border:1px solid var(--line);font-size:11px}
+  .ok{color:var(--grn);border-color:#1c4a3a}.bad{color:var(--red);border-color:#4a1c25}
+  .amb{color:var(--amb);border-color:#4a3a12}
+  .wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;padding:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .card h2{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--mut)}
+  .kv{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #1b2430}
+  .kv:last-child{border-bottom:0}.kv b{font-weight:600}
+  .big{font-size:30px;font-weight:700;margin:4px 0}
+  .long{color:var(--grn)}.short{color:var(--red)}.mut{color:var(--mut)}
+  .cool{color:var(--amb);font-weight:700}
+  .qual-ok{color:var(--grn)}.qual-ny{color:var(--red)}.qual-mut{color:var(--mut)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:right;padding:5px 7px;border-bottom:1px solid #1b2430}
+  th{color:var(--mut);font-weight:600;text-transform:uppercase;font-size:10px}
+  th:first-child,td:first-child{text-align:left}
+  .pill{padding:1px 6px;border-radius:5px;font-size:11px}
+  .k-arm{background:#3a2f12;color:var(--amb)}.k-lock{background:#13202b;color:var(--blu)}
+  .k-fill{background:#12301f;color:var(--grn)}.k-scalp{background:#241636;color:var(--pur)}
+  .k-close{background:#3a161d;color:var(--red)}
+  .ev{display:grid;grid-template-columns:64px 70px 1fr auto;gap:8px;padding:3px 0;border-bottom:1px dashed #1b2430}
+  .ev .t{color:var(--mut)} .full{grid-column:1/-1}
+  footer{padding:10px 18px;color:var(--mut);border-top:1px solid var(--line)}
+  #err{color:var(--red)}
+</style></head>
+<body>
+<header>
+  <h1>DHS&nbsp;ENGINE <span id="sym" class="sym">—</span></h1>
+  <span id="dir" class="badge">—</span>
+  <div class="badges">
+    <span id="b_conn" class="badge">broker</span>
+    <span id="b_feed" class="badge">feed</span>
+    <span id="b_rest" class="badge">resting</span>
+    <span id="b_open" class="badge">open</span>
+    <span id="b_scalp" class="badge">scalp</span>
+  </div>
+</header>
+<div class="wrap">
+  <div class="card">
+    <h2>Day P&amp;L (level basis)</h2>
+    <div id="pnl" class="big mut">—</div>
+    <div class="kv"><span>Realised (cum_real)</span><b id="realised">—</b></div>
+    <div class="kv"><span>Day total (day_pnl)</span><b id="daypnl">—</b></div>
+    <div class="kv"><span>Day done</span><b id="daydone">—</b></div>
+    <div class="kv"><span>Setups today</span><b id="nsetups">—</b></div>
+    <div class="kv"><span>Worst DD today</span><b id="worstdd">—</b></div>
+  </div>
+  <div class="card">
+    <h2>Engine state</h2>
+    <div class="kv"><span>Setup active</span><b id="e_active">—</b></div>
+    <div class="kv"><span>Breakout</span><b id="e_break">—</b></div>
+    <div class="kv"><span>Direction</span><b id="e_dir">—</b></div>
+    <div class="kv"><span>Zone (high / low)</span><b id="e_zone">—</b></div>
+    <div class="kv"><span>Entries filled</span><b id="e_entries">—</b></div>
+    <div class="kv"><span>Total lots</span><b id="e_lots">—</b></div>
+    <div class="kv"><span>Cooldown</span><b id="e_cool">—</b></div>
+  </div>
+  <div class="card">
+    <h2>Detector (candle being watched)</h2>
+    <div class="kv"><span>Current hour (UTC)</span><b id="d_hour">—</b></div>
+    <div class="kv"><span>Candle high / low</span><b id="d_hl">—</b></div>
+    <div class="kv"><span>Range so far</span><b id="d_range">—</b></div>
+    <div class="kv"><span>Vol context (crvol)</span><b id="d_vol">—</b></div>
+    <div class="kv"><span>Candles tracked</span><b id="d_n">—</b></div>
+    <div class="kv"><span>Qualifies?</span><b id="d_qual">—</b></div>
+  </div>
+  <div class="card">
+    <h2>Anchor levels (audit ref)</h2>
+    <div class="kv"><span>PDC</span><b id="a_pdc">—</b></div>
+    <div class="kv"><span>R5D high</span><b id="a_r5dh">—</b></div>
+    <div class="kv"><span>R5D low</span><b id="a_r5dl">—</b></div>
+    <div class="kv"><span>Bootstrap days</span><b id="a_n">—</b></div>
+  </div>
+  <div class="card" style="grid-column:1/-1">
+    <h2>Open positions <span class="mut" id="pos_note"></span></h2>
+    <table><thead><tr><th>Broker position id</th><th>Side</th><th>Lots</th><th>State</th></tr></thead>
+      <tbody id="pos"><tr><td class="mut full">none</td></tr></tbody></table>
+  </div>
+  <div class="card" style="grid-column:1/-1">
+    <h2>Recent events</h2>
+    <div id="events"><div class="mut">none</div></div>
+  </div>
+</div>
+<footer>api <span id="api">—</span> · account <span id="acct">—</span> · config B_SQ30_MH120 ·
+  resting <span id="f_rest">—</span> · updated <span id="ts">—</span> · auto-refresh 2s
+  <span id="err"></span></footer>
+<script>
+const API=(new URLSearchParams(location.search).get('api')||'https://api.cordius.in/dhs').replace(/\/$/,'');
+const $=id=>document.getElementById(id);
+const f=(v,d=2)=>v===null||v===undefined?'—':Number(v).toFixed(d);
+const money=v=>v===null||v===undefined?'—':(v>=0?'+$':'-$')+Math.abs(v).toFixed(2);
+const dirName=d=>d>0?'LONG':d<0?'SHORT':'—';
+const NY={13:1,14:1,15:1,16:1,17:1};
+function badge(el,ok,label){el.className='badge '+(ok?'ok':'bad');el.textContent=label+(ok?' ✓':' ✗');}
+function countBadge(el,n,label){const on=Number(n)>0;el.className='badge '+(on?'amb':'');el.textContent=label+' '+(n??0);}
+$('api').textContent=API;
+async function tick(){
+  let s;
+  try{ s=await (await fetch(API+'/state',{cache:'no-store'})).json(); $('err').textContent=''; }
+  catch(e){ $('err').textContent=' · OFFLINE'; return; }
+  if(s.error){ $('err').textContent=' · '+s.error; return; }
+  const h=s.health||{}, e=s.engine||{}, d=s.detector||{}, a=s.anchor||{};
+  const act=d.active||null;
+  $('sym').textContent=s.symbol||'—'; $('acct').textContent=s.account||'—';
+  $('ts').textContent=(s.ts||'').replace('T',' ').slice(0,19); $('f_rest').textContent=s.resting??0;
+  // header
+  const md=$('dir'); const dv=e.dir; md.textContent='DIR '+dirName(dv);
+  md.className='badge '+(dv>0?'ok':dv<0?'bad':'');
+  badge($('b_conn'),h.connected,'broker'); badge($('b_feed'),h.tick_feed_connected,'feed');
+  countBadge($('b_rest'),h.resting_orders??s.resting,'resting');
+  countBadge($('b_open'),h.open_positions,'open');
+  $('b_scalp').className='badge '+(h.scalp_open?'amb':''); $('b_scalp').textContent='scalp '+(h.scalp_open?'ON':'off');
+  // day pnl
+  const p=$('pnl'); const pv=e.day_pnl;
+  p.textContent=money(pv); p.className='big '+(pv>0?'long':pv<0?'short':'mut');
+  $('realised').textContent=money(e.cum_real); $('daypnl').textContent=money(e.day_pnl);
+  $('daydone').textContent=e.day_done?'YES (target/stop)':'no';
+  $('nsetups').textContent=e.n_setups??'—'; $('worstdd').textContent=money(e.worst_dd);
+  // engine state
+  $('e_active').textContent=e.setup_active?'YES':'no';
+  $('e_break').textContent=e.breakout?'YES':'no';
+  const ed=$('e_dir'); ed.textContent=dirName(e.dir); ed.className=e.dir>0?'long':e.dir<0?'short':'mut';
+  $('e_zone').textContent=e.zone?(f(e.zone[0])+' / '+f(e.zone[1])):'—';
+  $('e_entries').textContent=e.n_entries??'—'; $('e_lots').textContent=f(e.total_lots,2);
+  const ec=$('e_cool'); if(e.cd_active){ec.className='cool';ec.textContent='⏸ COOLDOWN until '+(e.cd_end||'?');}
+  else{ec.className='';ec.textContent='no';}
+  // detector
+  $('d_hour').textContent=d.cur_hour?d.cur_hour.replace('T',' ').slice(0,16):'—';
+  $('d_hl').textContent=act?(f(act.ch)+' / '+f(act.cl)):'—';
+  $('d_range').textContent=act?(f(act.crange)+' pt'):'—';
+  $('d_vol').textContent=act?f(act.crvol):'—';
+  $('d_n').textContent=d.n_ranges??'—';
+  const dq=$('d_qual');
+  if(!act){dq.textContent='— (warming up)';dq.className='qual-mut';}
+  else if(NY[act.chour]){dq.textContent='NO — NY hour '+act.chour+':00';dq.className='qual-ny';}
+  else if(act.crange<=10){dq.textContent='YES — narrow ('+f(act.crange)+'≤10)';dq.className='qual-ok';}
+  else{dq.textContent='no — wide ('+f(act.crange)+'>10)';dq.className='qual-mut';}
+  // anchors
+  $('a_pdc').textContent=f(a.pdc); $('a_r5dh').textContent=f(a.r5d_h);
+  $('a_r5dl').textContent=f(a.r5d_l); $('a_n').textContent=a.n_days??'—';
+  // open positions (engine /state exposes broker position ids; side = setup dir)
+  const pos=s.open_positions||[]; const side=dirName(e.dir);
+  $('pos_note').textContent=pos.length?('· '+pos.length+' leg(s), '+(s.resting||0)+' resting stop(s)'):'';
+  $('pos').innerHTML = pos.length? pos.map(pid=>`<tr>
+     <td>${pid}</td><td>${side}</td><td>${f(e.total_lots/Math.max(pos.length,1),2)}</td>
+     <td><span class="pill k-fill">open</span></td></tr>`).join('')
+     : '<tr><td class="mut full">none</td></tr>';
+  // recent events
+  const cls=k=>k==='ARM'?'k-arm':k==='LOCK'?'k-lock':k==='GRID_FILL'?'k-fill':
+    (k==='SCALP_OPEN'||k==='SCALP_CLOSE')?'k-scalp':k==='CLOSE_ALL'?'k-close':'';
+  const ev=s.recent||[];
+  $('events').innerHTML = ev.length? ev.map(x=>{
+     let mid=''; if(x.zone_high!=null||x.zone_low!=null) mid='zone '+f(x.zone_high)+' / '+f(x.zone_low);
+     else if(x.level!=null) mid=(x.side?x.side+' ':'')+'@'+f(x.level);
+     else if(x.dir!=null) mid='dir '+dirName(x.dir);
+     let rt=x.fill!=null?('fill '+f(x.fill)):(x.reason||'');
+     return `<div class="ev"><span class="t">${(x.ts||'').slice(11,19)}</span>
+       <span><span class="pill ${cls(x.kind)}">${x.kind}</span></span>
+       <span>${mid}</span><span>${rt}</span></div>`;}).join('')
+     : '<div class="mut">none</div>';
+}
+tick(); setInterval(tick,2000);
+</script>
+</body></html>
