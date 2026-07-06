@@ -100,6 +100,12 @@
       <tbody id="pos"><tr><td class="mut full">none</td></tr></tbody></table>
   </div>
   <div class="card" style="grid-column:1/-1">
+    <h2>Setup history — this session <span class="mut" id="setup-count-note"></span></h2>
+    <table><thead><tr><th>#</th><th>ARM time (UTC)</th><th>Zone (H / L)</th><th>Legs</th><th>Exit</th><th>P&amp;L</th><th>Status</th></tr></thead>
+      <tbody id="setup-history-body"><tr><td class="mut full">Waiting for first setup this session…</td></tr></tbody></table>
+    <div class="mut" style="margin-top:8px;font-size:10px">In-memory only — resets on page reload. Keep this tab open to accumulate today's setups. (Persistent history would need a DHS <code>GET /dhs/sessions/today</code> endpoint.)</div>
+  </div>
+  <div class="card" style="grid-column:1/-1">
     <h2>Recent events</h2>
     <div id="events"><div class="mut">none</div></div>
   </div>
@@ -117,6 +123,9 @@ const NY={13:1,14:1,15:1,16:1,17:1};
 function badge(el,ok,label){el.className='badge '+(ok?'ok':'bad');el.textContent=label+(ok?' ✓':' ✗');}
 function countBadge(el,n,label){const on=Number(n)>0;el.className='badge '+(on?'amb':'');el.textContent=label+' '+(n??0);}
 $('api').textContent=API;
+// PROMPT-235b: setup history — accumulates in-memory across polls this session
+// (resets on reload; a GET /dhs/sessions/today endpoint would make it persistent).
+const setupHistory=[]; let lastSetupCount=0; let lastSetupActive=false;
 async function tick(){
   let s;
   try{ s=await (await fetch(API+'/state',{cache:'no-store'})).json(); $('err').textContent=''; }
@@ -124,6 +133,29 @@ async function tick(){
   if(s.error){ $('err').textContent=' · '+s.error; return; }
   const h=s.health||{}, e=s.engine||{}, d=s.detector||{}, a=s.anchor||{};
   const act=d.active||null;
+  // ── PROMPT-235b: accumulate setup history (fields live under engine `e`) ──
+  {
+    const nSet=e.n_setups||0, active=e.setup_active||false, cum=e.cum_real||0;
+    const legs=(s.open_positions||[]).length;
+    if(nSet>lastSetupCount && active){
+      setupHistory.push({num:nSet, arm:new Date().toUTCString().slice(5,22)+' UTC',
+        zh:e.zone?e.zone[0]:null, zl:e.zone?e.zone[1]:null, legs:legs,
+        exit:null, pnl:null, status:'ACTIVE'});
+      lastSetupCount=nSet;
+    }
+    const cur=setupHistory.find(x=>x.status==='ACTIVE');
+    if(cur){ cur.legs=Math.max(cur.legs||0, legs); if(cur.zh==null && e.zone){cur.zh=e.zone[0]; cur.zl=e.zone[1];} }
+    if(lastSetupActive && !active && setupHistory.length){
+      const lastS=setupHistory[setupHistory.length-1];
+      if(lastS.status==='ACTIVE'){
+        lastS.status='CLOSED';
+        lastS.exit=e.day_done?'DAY_DONE':'FLAT';
+        lastS.pnl=cum - setupHistory.slice(0,-1).reduce((a,x)=>a+(x.pnl||0),0);
+      }
+    }
+    lastSetupActive=active;
+    renderSetupHistory();
+  }
   $('sym').textContent=s.symbol||'—'; $('acct').textContent=s.account||'—';
   $('ts').textContent=(s.ts||'').replace('T',' ').slice(0,19); $('f_rest').textContent=s.resting??0;
   // header
@@ -181,6 +213,23 @@ async function tick(){
        <span><span class="pill ${cls(x.kind)}">${x.kind}</span></span>
        <span>${mid}</span><span>${rt}</span></div>`;}).join('')
      : '<div class="mut">none</div>';
+}
+function renderSetupHistory(){
+  const note=$('setup-count-note'), tb=$('setup-history-body');
+  if(note) note.textContent = setupHistory.length ? ('· '+setupHistory.length+' setup'+(setupHistory.length!==1?'s':'')+' this session') : '';
+  if(!tb || !setupHistory.length) return;
+  const col=v=>v>0?'var(--grn)':v<0?'var(--red)':'var(--mut)';
+  let html = setupHistory.slice().reverse().map(sp=>{
+    const pnl = sp.pnl!=null ? `<span style="color:${col(sp.pnl)}">${money(sp.pnl)}</span>` : '—';
+    const stc = sp.status==='ACTIVE' ? 'var(--amb)' : col(sp.pnl);
+    const zone = (sp.zh!=null||sp.zl!=null) ? (f(sp.zh)+' / '+f(sp.zl)) : '—';
+    return `<tr><td>${sp.num}</td><td>${sp.arm}</td><td class="mut">${zone}</td><td>${sp.legs||'—'}</td><td class="mut">${sp.exit||'—'}</td><td>${pnl}</td><td><span style="color:${stc};font-weight:600">${sp.status}</span></td></tr>`;
+  }).join('');
+  if(setupHistory.some(x=>x.pnl!=null)){
+    const total=setupHistory.reduce((a,x)=>a+(x.pnl||0),0);
+    html += `<tr style="border-top:2px solid var(--line)"><td colspan="5" class="mut">Session total (closed setups)</td><td style="font-weight:700;color:${col(total)}">${money(total)}</td><td></td></tr>`;
+  }
+  tb.innerHTML=html;
 }
 tick(); setInterval(tick,2000);
 </script>
