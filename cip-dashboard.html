@@ -145,6 +145,7 @@ footer a{color:var(--muted);text-decoration:none;}
         <span class="pill grey" id="dhs-pill">—</span>
       </div>
       <div class="card-body">
+        <div id="dhs-intervention-banner" style="display:none;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);border-radius:5px;padding:8px 12px;margin-bottom:10px;font-size:11px;font-family:var(--mono);color:#ef4444;">⚠ MANUAL INTERVENTION REQUIRED<span id="dhs-orphan-count"></span></div>
         <div class="big-pnl-lbl">Day P&amp;L</div>
         <div class="big-pnl" id="dhs-pnl">$—</div>
         <div class="mrow"><span class="k">Setup</span><span class="v" id="dhs-setup">—</span></div>
@@ -163,6 +164,7 @@ footer a{color:var(--muted);text-decoration:none;}
         <span class="pill grey" id="pdc-pill">—</span>
       </div>
       <div class="card-body">
+        <div id="pdc-intervention-banner" style="display:none;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);border-radius:5px;padding:8px 12px;margin-bottom:10px;font-size:11px;font-family:var(--mono);color:#ef4444;">⚠ MANUAL INTERVENTION REQUIRED<span id="pdc-orphan-count"></span></div>
         <div class="big-pnl-lbl">Session P&amp;L</div>
         <div class="big-pnl" id="pdc-pnl">$—</div>
         <div class="progress"><i id="pdc-prog" style="width:0%"></i></div>
@@ -182,6 +184,7 @@ footer a{color:var(--muted);text-decoration:none;}
         <span class="pill grey" id="aurum-pill">—</span>
       </div>
       <div class="card-body">
+        <div id="aurum-intervention-banner" style="display:none;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);border-radius:5px;padding:8px 12px;margin-bottom:10px;font-size:11px;font-family:var(--mono);color:#ef4444;">⚠ MANUAL INTERVENTION REQUIRED<span id="aurum-orphan-count"></span></div>
         <div class="big-pnl-lbl">Signal score</div>
         <div class="big-pnl" id="aurum-score">—</div>
         <div class="scorebar"><span class="mid"></span><i id="aurum-scorebar" style="left:50%;width:0"></i></div>
@@ -234,6 +237,8 @@ function fnum(v,dp=2,suffix=''){ const n=num(v); return n===null?'—':(n.toLoca
 function txt(id,v){ const el=$(id); if(el) el.textContent = (v===null||v===undefined||v==='')?'—':v; }
 function setPill(id,label,cls){ const el=$(id); if(!el) return; el.textContent=label; el.className='pill '+cls; }
 function setConn(dotId,connId,ok){ const d=$(dotId),c=$(connId); if(d) d.className='dot '+(ok?'on':'off'); if(c){ c.textContent=ok?'connected':'disconnected'; c.className=ok?'pos':'neg'; } }
+// PROMPT-235 follow-up: intervention / orphan warning strip
+function setBanner(prefix, show, orphanN){ const b=$(prefix+'-intervention-banner'), c=$(prefix+'-orphan-count'); if(!b) return; b.style.display = show?'block':'none'; if(c) c.textContent = (orphanN>0)?(' · '+orphanN+' orphan'+(orphanN>1?'s':'')+' on broker'):''; }
 
 function sessionOf(){ const h=new Date().getUTCHours(); if(h>=7&&h<12) return 'LONDON'; if(h>=12&&h<21) return 'NEW YORK'; return 'ASIAN'; }
 
@@ -254,6 +259,9 @@ function renderDHS(){
   txt('dhs-dd', money(e.worst_dd));
   const ok = online.dhs && (h.connected!==false);
   setConn('dhs-dot','dhs-conn', ok && h.tick_feed_connected!==false);
+  const dhsMi = st.manual_intervention_required===true;
+  const dhsOrph = (st.reconcile && st.reconcile.orphans_found) || 0;
+  setBanner('dhs', dhsMi || dhsOrph>0, dhsOrph);
   let extra='';
   if(opens.length){ extra += '<div class="divh">Open positions</div><table class="mini-tbl"><tr><th>Dir</th><th>Entry</th><th>P&L</th></tr>'+
     opens.map(p=>`<tr><td>${p.direction||p.side||'—'}</td><td>${fnum(p.entry_price||p.entry,2)}</td><td class="${pnlCls(p.unrealised_pnl||p.pnl)}">${money(p.unrealised_pnl||p.pnl)}</td></tr>`).join('')+'</table>'; }
@@ -278,6 +286,9 @@ function renderPDC(){
   txt('pdc-pos', num(g.n_open,0)+' open · '+num(g.n_hedged,0)+' hedged');
   const ok = online.pdc && (h.connected!==false);
   setConn('pdc-dot','pdc-conn', ok && h.tick_feed_connected!==false);
+  const pdcMi = st.manual_intervention_required===true;
+  const pdcOrph = (st.reconcile && st.reconcile.orphans_found) || h.orphans || 0;
+  setBanner('pdc', pdcMi || pdcOrph>0, pdcOrph);
   let extra='';
   extra += '<div class="mrow"><span class="k">Peak positions</span><span class="v">'+num(g.peak_pos,0)+'</span></div>';
   if(g.exit_reason) extra += '<div class="mrow"><span class="k">Last exit</span><span class="v">'+g.exit_reason+'</span></div>';
@@ -308,6 +319,9 @@ function renderAurum(){
   const blocked = ['h6','h7','h8'].filter(k=>gd[k]===true);
   txt('aurum-guards', s ? (blocked.length?blocked.join(', '):'none') : null);
   setConn('aurum-dot','aurum-conn', online.aurum);
+  // Aurum orphan detection needs the broker-side /v1/brokers/positions snapshot,
+  // which is CRE-internal (404 on api.cordius.in) — no public signal yet, banner stays hidden.
+  setBanner('aurum', false, 0);
   let extra='';
   if(s&&s.price&&num(s.price.mid)!==null) extra += '<div class="mrow"><span class="k">Mid price</span><span class="v">'+fnum(s.price.mid,2)+'</span></div>';
   if(pos.length){ extra += '<div class="divh">Open positions</div><table class="mini-tbl"><tr><th>Side</th><th>Lots</th><th>Entry</th><th>SL</th><th>P&L</th></tr>'+
