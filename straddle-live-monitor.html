@@ -216,7 +216,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
     <span class="logo-mark">CWS CIP</span>
     <div>
       <div class="page-title">Squeeze Straddle — Live Monitor</div>
-      <div class="page-sub">SS-PD1H-01 + SS-SESS-01 · XAU/USD · CBA 7 (47167724)</div>
+      <div class="page-sub">SS-PD1H-01 + SS-SESS-01 · XAU/USD · CBA 12 (47824036) · <span style="color:var(--warn);">PAUSED</span></div>
     </div>
   </div>
   <div class="topbar-right">
@@ -231,6 +231,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 </div>
 
 <div class="main">
+
+  <!-- ═══ PAUSED NOTICE ═══ -->
+  <div class="span-full" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-family:var(--mono);font-size:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <span style="font-size:15px;">⏸</span>
+    <b style="color:var(--warn);letter-spacing:.06em;">PAUSED</b>
+    <span style="color:var(--text);"><code style="color:var(--warn);">cws-straddle-engine-dev</code> is not running · SS-PD1H-01 / SS-SESS-01 were moved to <b>CBA 12 (47824036)</b> and disabled (2026-07). This monitor is historical until the service returns.</span>
+  </div>
 
   <!-- ═══ PRICE HERO ═══ -->
   <div class="span-full">
@@ -562,14 +569,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
           <div class="svc-dot dot-dim" id="dot-broker"></div>
           <div>
             <div class="svc-name">Pepperstone Demo</div>
-            <div class="svc-detail" id="detail-broker">CBA 7 · Account 47167724</div>
+            <div class="svc-detail" id="detail-broker">CBA 12 · Account 47824036</div>
           </div>
         </div>
         <span id="state-broker" style="font-family:var(--mono);font-size:11px;color:var(--dim);">—</span>
       </div>
 
       <div style="margin-top:12px;padding:10px;background:var(--bg3);border-radius:5px;border:1px solid var(--border);">
-        <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">EQUITY · CBA 7</div>
+        <div style="font-size:9px;color:var(--dim);margin-bottom:6px;">EQUITY · CBA 12</div>
         <div style="font-family:var(--mono);font-size:20px;font-weight:600;color:var(--success);" id="equity-value">—</div>
         <div style="font-size:10px;color:var(--muted);margin-top:2px;" id="equity-sub">—</div>
       </div>
