@@ -82,6 +82,28 @@
   .t-fail{background:rgba(255,59,92,.13);color:var(--R)}
   .t-skip{background:rgba(255,255,255,.06);color:var(--mut)}
   .t-hedge{background:rgba(245,166,35,.14);color:var(--A)}
+  /* signals view — summary bar + filters + rich rows */
+  .sig-bar{position:sticky;top:-6px;z-index:2;background:var(--card);padding:2px 4px 9px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px;margin-bottom:4px}
+  .sig-stats{display:flex;gap:6px;flex-wrap:wrap}
+  .kchip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:7px;background:var(--card2);border:1px solid var(--line);font-size:11px;color:var(--mut)}
+  .kchip b{font-family:var(--font-mono);font-weight:700;font-size:12px}
+  .sig-filters{display:flex;gap:6px;flex-wrap:wrap}
+  .fchip{padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--mut);font-size:11px;font-weight:600;font-family:var(--font-mono);cursor:pointer}
+  .fchip:hover{color:var(--fg)}
+  .fchip.on{border-color:var(--C);background:rgba(0,212,255,.1);color:var(--C)}
+  .fchip .c{opacity:.65;margin-left:5px;font-weight:500}
+  .srow{display:grid;grid-template-columns:60px 38px 118px 20px 1fr auto;gap:9px;align-items:center;padding:5px 8px;border-radius:7px;font-size:12px;border-bottom:1px solid rgba(255,255,255,.03);animation:pFade .2s ease}
+  .srow:hover{background:rgba(255,255,255,.03)}
+  .srow .t{font-family:var(--font-mono);color:var(--dim);font-size:11px}
+  .srow .anc{font-family:var(--font-mono);font-weight:700;font-size:11px;color:var(--C)}
+  .srow .k{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:11px}
+  .srow .k .ic{width:14px;text-align:center;font-size:12px}
+  .srow .d{font-family:var(--font-mono);font-size:10px;font-weight:800}
+  .srow .px{font-family:var(--font-mono);color:var(--mut);font-size:11px}
+  .srow .px b{color:var(--sec);font-weight:600}
+  .srow .r{text-align:right;font-family:var(--font-mono);font-size:11px}
+  .k-entry{color:var(--G)} .k-reject{color:var(--R)} .k-hedge{color:var(--A)}
+  .k-unwind{color:var(--A)} .k-exit{color:var(--C)} .k-orphan{color:var(--R)} .k-mut{color:var(--mut)}
   /* trades table */
   table{width:100%;border-collapse:collapse;font-size:12px}
   th,td{text-align:right;padding:5px 9px;border-bottom:1px solid var(--line)}
@@ -179,17 +201,53 @@
     }).join('');
   }
 
-  function sigTag(s){
-    if(s.skip) return '<span class="tag t-skip">SKIP</span>';
-    if(s.hedge) return '<span class="tag t-hedge">HEDGE</span>';
-    return s.passed?'<span class="tag t-pass">PASSED</span>':'<span class="tag t-fail">FAILED</span>';
-  }
+  var KMETA={
+    ENTRY:{ic:'▲',lbl:'ENTRY',cls:'k-entry'},
+    ENTRY_REJECT:{ic:'✕',lbl:'REJECT',cls:'k-reject'},
+    HEDGE_PLACED:{ic:'⊕',lbl:'HEDGE ARM',cls:'k-hedge'},
+    HEDGE_FILLED:{ic:'⊕',lbl:'HEDGE FILL',cls:'k-hedge'},
+    UNWIND:{ic:'⊖',lbl:'UNWIND',cls:'k-unwind'},
+    UNWIND_CANCEL:{ic:'⊘',lbl:'UNWIND CXL',cls:'k-mut'},
+    EXIT:{ic:'●',lbl:'EXIT',cls:'k-exit'},
+    EXIT_PENDING:{ic:'○',lbl:'EXIT PEND',cls:'k-mut'},
+    ORPHAN_CLOSED:{ic:'⚠',lbl:'ORPHAN',cls:'k-orphan'}
+  };
+  var STAT_ORDER=['ENTRY','ENTRY_REJECT','HEDGE_FILLED','UNWIND','EXIT','ORPHAN_CLOSED'];
+  var sigFilter='all';
+  function clock(ts){return (ts||'').slice(11,19);}
+
   function renderSignals(d){
-    var s=(d.signals||[]);
-    $('pane-signals').innerHTML=s.length?s.map(function(x){
-      return '<div class="row"><span class="t">'+ago(x.ts)+'</span><span class="anc">'+String(x.hour).padStart(2,'0')+'h</span>'
-        +'<span class="desc">'+esc(x.kind)+'</span><span class="lvl">'+(x.level!=null?num(x.level,2):'')+'</span>'+sigTag(x)+'</div>';
-    }).join(''):'<div class="row" style="color:var(--dim)">no signals yet</div>';
+    var sigs=d.signals||[], kinds=d.kinds||{};
+    var anchors=(d.anchors||[]).filter(function(a){return a.state==='live';});
+    // ── summary: per-kind daily totals ──
+    var stats=STAT_ORDER.filter(function(k){return kinds[k];}).map(function(k){
+      var m=KMETA[k]; return '<span class="kchip"><span class="'+m.cls+'">'+m.ic+'</span>'+m.lbl+' <b class="'+m.cls+'">'+kinds[k]+'</b></span>';
+    }).join('');
+    if(!stats) stats='<span class="kchip" style="color:var(--dim)">no signals today yet</span>';
+    // ── filter chips: ALL + per live anchor (with ✓/✗ counts) ──
+    var tp=anchors.reduce(function(s,a){return s+(a.sig_pass||0);},0);
+    var tf=anchors.reduce(function(s,a){return s+(a.sig_fail||0);},0);
+    var chips='<button class="fchip'+(sigFilter==='all'?' on':'')+'" data-f="all">ALL<span class="c">✓'+tp+' ✗'+tf+'</span></button>'
+      +anchors.map(function(a){return '<button class="fchip'+(String(sigFilter)==String(a.hour)?' on':'')+'" data-f="'+a.hour+'">'+a.tag+'<span class="c">✓'+a.sig_pass+' ✗'+a.sig_fail+'</span></button>';}).join('');
+    // ── feed rows (filtered) ──
+    var feed=sigs.filter(function(x){return sigFilter==='all'||String(x.hour)===String(sigFilter);});
+    var rows=feed.map(function(x){
+      var m=KMETA[x.kind]||{ic:'·',lbl:x.kind,cls:'k-mut'};
+      var dir=x.dir?'<span class="d" style="color:'+(x.dir==='LONG'?'var(--G)':'var(--R)')+'">'+(x.dir==='LONG'?'L':'S')+'</span>':'<span></span>';
+      var px=(x.level!=null?num(x.level,2):'—');
+      if(x.fill!=null && x.fill!==x.level) px+=' <b>→ '+num(x.fill,2)+'</b>';
+      var right=(x.pnl!=null)?'<span class="'+pnlCls(x.pnl)+'">'+money(x.pnl)+'</span>'
+        :(x.pos?'<span style="color:var(--dim)">#'+esc(String(x.pos)).slice(-6)+'</span>':'');
+      return '<div class="srow"><span class="t">'+clock(x.ts)+'</span>'
+        +'<span class="anc">'+String(x.hour).padStart(2,'0')+'h</span>'
+        +'<span class="k '+m.cls+'"><span class="ic">'+m.ic+'</span>'+m.lbl+'</span>'
+        +dir+'<span class="px">'+px+'</span><span class="r">'+right+'</span></div>';
+    }).join('');
+    if(!rows) rows='<div class="srow" style="color:var(--dim);grid-template-columns:1fr">no events for this anchor</div>';
+    $('pane-signals').innerHTML='<div class="sig-bar"><div class="sig-stats">'+stats+'</div><div class="sig-filters">'+chips+'</div></div>'+rows;
+    Array.prototype.forEach.call($('pane-signals').querySelectorAll('.fchip'),function(b){
+      b.addEventListener('click',function(){var f=b.getAttribute('data-f');sigFilter=(f==='all')?'all':+f;renderSignals(last||d);});
+    });
   }
   function renderTrades(d){
     var tr=(d.trades||[]);
