@@ -248,7 +248,7 @@
     $('grid').innerHTML=ORDER.map(function(h){
       var a=byHour[h]; if(!a) return '';
       if(a.state==='pending'){
-        return '<div class="anchor pending"><div class="a-top"><div><div class="a-hour">'+String(h).padStart(2,'0')+':00 <small>UTC</small></div><div class="a-acct">awaiting account</div></div><span class="chip c-pend">PENDING</span></div><div class="status s-flat">NOT PROVISIONED</div><div class="pnl zero">—</div>'
+        return '<div class="anchor pending"><div class="a-top"><div><div class="a-hour">'+String(h).padStart(2,'0')+':00 <small>UTC</small></div><div class="a-acct">no audit rows yet</div></div><span class="chip c-pend">IDLE</span></div><div class="status s-flat">AWAITING FIRST TRADE</div><div class="pnl zero">—</div>'
           +vsBT(a)+'</div>';
       }
       var glow=a.status==='WIN'?' win':a.status==='HARD_STOP'?' stop':'';
