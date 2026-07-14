@@ -271,23 +271,27 @@
       +'</div>';
   }
 
-  // which anchor hour samples its PDC next (the "next anchor"), + a countdown
-  function nextAnchor(){
+  // the anchor whose reference time is CURRENTLY in effect (the most recent to tick,
+  // valid until the next one), + when it hands over
+  function activeAnchor(){
+    var A=ORDER.slice().sort(function(x,y){return x-y;});   // ascending
     var nd=new Date(), nowH=nd.getUTCHours();
-    var wrap=false, nh=ORDER.slice().sort(function(x,y){return x-y;}).find(function(x){return x>nowH;});
-    if(nh===undefined){nh=Math.min.apply(null,ORDER); wrap=true;}
-    var na=new Date(Date.UTC(nd.getUTCFullYear(),nd.getUTCMonth(),nd.getUTCDate()+(wrap?1:0),nh,0,0));
+    var active; for(var i=A.length-1;i>=0;i--){ if(A[i]<=nowH){ active=A[i]; break; } }
+    if(active===undefined) active=A[A.length-1];            // before the first anchor -> prev day's last (22)
+    var next=A.find(function(x){return x>nowH;}), wrapNext=false;
+    if(next===undefined){ next=A[0]; wrapNext=true; }
+    var na=new Date(Date.UTC(nd.getUTCFullYear(),nd.getUTCMonth(),nd.getUTCDate()+(wrapNext?1:0),next,0,0));
     var m=Math.max(0,Math.round((na-nd)/60000));
-    return {hour:nh, cd:(m>=60?Math.floor(m/60)+'h '+(m%60)+'m':m+'m')};
+    return {hour:active, next:next, cd:(m>=60?Math.floor(m/60)+'h '+(m%60)+'m':m+'m')};
   }
   function renderGrid(d){
     var byHour={}; d.anchors.forEach(function(a){byHour[a.hour]=a;});
     var hist=d.history||{};
-    var nx=nextAnchor();
+    var nx=activeAnchor();
     $('grid').innerHTML=ORDER.map(function(h){
       var a=byHour[h]; if(!a) return '';
       var isNext=(h===nx.hour);
-      var nextChip=isNext?'<span class="chip c-next">NEXT · '+nx.cd+'</span>':'';
+      var nextChip=isNext?'<span class="chip c-next" title="active reference; hands over to '+String(nx.next).padStart(2,'0')+':00 in '+nx.cd+'">ACTIVE · →'+String(nx.next).padStart(2,'0')+'h '+nx.cd+'</span>':'';
       if(a.state==='pending'){
         return '<div class="anchor pending'+(isNext?' next':'')+'"><div class="a-top"><div><div class="a-hour">'+String(h).padStart(2,'0')+':00 <small>UTC</small></div><div class="a-acct">no audit rows yet</div></div>'+(nextChip||'<span class="chip c-pend">IDLE</span>')+'</div><div class="status s-flat">AWAITING FIRST TRADE</div><div class="pnl zero">—</div>'
           +vsBTDay(a,hist[String(h)])+'</div>';
