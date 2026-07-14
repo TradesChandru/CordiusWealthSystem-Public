@@ -37,8 +37,11 @@
   .grid{flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(238px,1fr));gap:12px;padding:14px 14px 4px}
   .anchor{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 15px;display:flex;flex-direction:column;gap:11px;animation:pFade .3s ease;position:relative;transition:border-color .3s}
   .anchor.pending{opacity:.5;border-style:dashed}
+  .anchor.pending.next{opacity:.85}
   .anchor.win{animation:glowG 2.6s ease-in-out infinite}
   .anchor.stop{animation:glowR 2.6s ease-in-out infinite}
+  .anchor.next{border-color:var(--C);box-shadow:0 0 0 1px rgba(0,212,255,.5),0 0 34px -12px rgba(0,212,255,.85)}
+  .c-next{background:rgba(0,212,255,.16);color:var(--C);border:1px solid rgba(0,212,255,.4)}
   .a-top{display:flex;align-items:flex-start;justify-content:space-between}
   .a-hour{font-family:var(--font-mono);font-size:22px;font-weight:600;letter-spacing:-.5px}
   .a-hour small{font-size:11px;color:var(--mut);font-weight:500;letter-spacing:0}
@@ -94,6 +97,8 @@
   .btrow .bd{font-family:var(--font-mono);color:var(--mut)}
   .btrow .bl{font-family:var(--font-mono);font-weight:600;text-align:right}
   .btrow .bb{font-family:var(--font-mono);font-weight:700;font-size:10px;text-align:right}
+  .bt5d{font-size:10px;color:var(--mut);padding-top:7px;margin-top:3px;border-top:1px solid var(--line);text-align:center;font-family:var(--font-mono)}
+  .bt5d b{font-weight:700}
 
   /* trades grouped by anchor */
   .tgroup{margin-bottom:12px}
@@ -238,42 +243,62 @@
 
   // LIVE vs SAME-DAY BT: the validated engine run seeded flat at go-live, per session.
   // Compares like-for-like — same PDC grid, same day — not a 6-year average.
+  function isActive(x){
+    return (x.pnl&&x.pnl!==0) || (x.bt_pnl&&x.bt_pnl!==0)
+      || (x.bt_outcome&&x.bt_outcome!=='SKIP'&&x.bt_outcome!=='FLAT');
+  }
   function vsBTDay(a, days){
     days=days||[];
     if(!days.some(function(x){return x.bt_outcome!=null;})) return '';   // BT not computed yet
-    var rows=days.filter(function(x){
-      return (x.pnl&&x.pnl!==0) || (x.bt_pnl&&x.bt_pnl!==0)
-        || (x.bt_outcome&&x.bt_outcome!=='SKIP'&&x.bt_outcome!=='FLAT');
-    }).map(function(x){
+    var today=days[days.length-1]||{};
+    var to=BTOUT[today.bt_outcome]||{c:'var(--mut)',s:today.bt_outcome||'—'};
+    var md=today.date?today.date.slice(5):'today';
+    var btTxt=to.s+(today.bt_pnl?' '+money(today.bt_pnl):'');
+    // prior active days (exclude today; most-recent first)
+    var prior=days.slice(0,-1).filter(isActive).reverse().map(function(x){
       var o=BTOUT[x.bt_outcome]||{c:'var(--mut)',s:x.bt_outcome||'—'};
       return '<div class="btrow"><span class="bd">'+x.date.slice(5)+'</span>'
         +'<span class="bl '+pnlCls(x.pnl)+'">'+money(x.pnl)+'</span>'
         +'<span class="bb" style="color:'+o.c+'">'+o.s+(x.bt_pnl?' '+money(x.bt_pnl):'')+'</span></div>';
     }).join('');
-    if(!rows) rows='<div class="btrow" style="grid-template-columns:1fr;color:var(--dim)">both skipped/flat every session</div>';
-    return '<div class="vsbt"><div class="vsbt-t"><span style="color:var(--dim)">LIVE vs BT</span><span>same-day · seeded flat at go-live</span></div>'
+    var priorBlock=prior?'<div class="btrows"><div class="btrow bthdr"><span>prior</span><span>live</span><span>bt (same session)</span></div>'+prior+'</div>':'';
+    return '<div class="vsbt"><div class="vsbt-t"><span style="color:var(--dim)">LIVE vs BT</span><span>same-day · '+md+'</span></div>'
       +'<div class="vsbt-grid">'
-      +'<div class="vc"><span>live 5d</span><b class="'+pnlCls(a.pnl5)+'">'+money(a.pnl5)+'</b></div>'
-      +'<div class="vc"><span>bt 5d</span><b class="'+pnlCls(a.bt_pnl5)+'">'+money(a.bt_pnl5!=null?a.bt_pnl5:0)+'</b></div>'
-      +'</div><div class="btrows"><div class="btrow bthdr"><span>day</span><span>live</span><span>bt (same session)</span></div>'+rows+'</div></div>';
+      +'<div class="vc"><span>'+md+' · live</span><b class="'+pnlCls(today.pnl)+'">'+money(today.pnl)+'</b></div>'
+      +'<div class="vc"><span>'+md+' · bt</span><b style="color:'+to.c+';font-size:13px">'+btTxt+'</b></div>'
+      +'</div>'+priorBlock
+      +'<div class="bt5d">5-day · live <b class="'+pnlCls(a.pnl5)+'">'+money(a.pnl5)+'</b> · bt <b class="'+pnlCls(a.bt_pnl5)+'">'+money(a.bt_pnl5!=null?a.bt_pnl5:0)+'</b></div>'
+      +'</div>';
   }
 
+  // which anchor hour samples its PDC next (the "next anchor"), + a countdown
+  function nextAnchor(){
+    var nd=new Date(), nowH=nd.getUTCHours();
+    var wrap=false, nh=ORDER.slice().sort(function(x,y){return x-y;}).find(function(x){return x>nowH;});
+    if(nh===undefined){nh=Math.min.apply(null,ORDER); wrap=true;}
+    var na=new Date(Date.UTC(nd.getUTCFullYear(),nd.getUTCMonth(),nd.getUTCDate()+(wrap?1:0),nh,0,0));
+    var m=Math.max(0,Math.round((na-nd)/60000));
+    return {hour:nh, cd:(m>=60?Math.floor(m/60)+'h '+(m%60)+'m':m+'m')};
+  }
   function renderGrid(d){
     var byHour={}; d.anchors.forEach(function(a){byHour[a.hour]=a;});
     var hist=d.history||{};
+    var nx=nextAnchor();
     $('grid').innerHTML=ORDER.map(function(h){
       var a=byHour[h]; if(!a) return '';
+      var isNext=(h===nx.hour);
+      var nextChip=isNext?'<span class="chip c-next">NEXT · '+nx.cd+'</span>':'';
       if(a.state==='pending'){
-        return '<div class="anchor pending"><div class="a-top"><div><div class="a-hour">'+String(h).padStart(2,'0')+':00 <small>UTC</small></div><div class="a-acct">no audit rows yet</div></div><span class="chip c-pend">IDLE</span></div><div class="status s-flat">AWAITING FIRST TRADE</div><div class="pnl zero">—</div>'
+        return '<div class="anchor pending'+(isNext?' next':'')+'"><div class="a-top"><div><div class="a-hour">'+String(h).padStart(2,'0')+':00 <small>UTC</small></div><div class="a-acct">no audit rows yet</div></div>'+(nextChip||'<span class="chip c-pend">IDLE</span>')+'</div><div class="status s-flat">AWAITING FIRST TRADE</div><div class="pnl zero">—</div>'
           +vsBTDay(a,hist[String(h)])+'</div>';
       }
       var glow=a.status==='WIN'?' win':a.status==='HARD_STOP'?' stop':'';
       var modeCls=a.mode==='LONG'?'c-long':a.mode==='SHORT'?'c-short':'c-neutral';
-      return '<div class="anchor'+glow+'">'
+      return '<div class="anchor'+glow+(isNext?' next':'')+'">'
         +'<div class="a-top"><div><div class="a-hour">'+String(h).padStart(2,'0')+':00 <small>UTC</small></div>'
         +'<div class="a-acct">acct '+a.account+(a.login?' · login '+a.login:'')+'</div></div>'
         +'<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">'
-        +'<span class="chip c-live">LIVE</span><span class="chip '+modeCls+'">'+(a.mode||'—')+'</span></div></div>'
+        +nextChip+'<span class="chip c-live">LIVE</span><span class="chip '+modeCls+'">'+(a.mode||'—')+'</span></div></div>'
         +'<span class="status '+statusCls(a.status)+'">'+(a.status||'—')+'</span>'
         +'<div class="pnl '+pnlCls(a.pnl)+'">'+money(a.pnl)+'</div>'
         +'<div><div class="a-kv"><span>PDC</span><b>'+num(a.pdc,2)+'</b></div>'
