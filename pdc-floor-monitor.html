@@ -86,6 +86,14 @@
   .vpill{flex:1;text-align:center;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.16);border-radius:7px;padding:4px 2px;font-size:9px;color:var(--mut);letter-spacing:.3px}
   .vpill b{display:block;font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--sec);margin-top:1px}
   .vsbt-none{font-size:10px;color:var(--dim);padding-top:9px;border-top:1px solid var(--line)}
+  /* same-day live-vs-BT per-session rows */
+  .btrows{display:flex;flex-direction:column;gap:1px}
+  .btrow{display:grid;grid-template-columns:38px 1fr 1.25fr;gap:6px;align-items:center;padding:3px 4px;border-radius:5px;font-size:11px}
+  .btrow:hover{background:rgba(255,255,255,.03)}
+  .btrow.bthdr{font-size:9px;color:var(--dim);letter-spacing:.4px;text-transform:uppercase;padding-bottom:1px}
+  .btrow .bd{font-family:var(--font-mono);color:var(--mut)}
+  .btrow .bl{font-family:var(--font-mono);font-weight:600;text-align:right}
+  .btrow .bb{font-family:var(--font-mono);font-weight:700;font-size:10px;text-align:right}
 
   /* trades grouped by anchor */
   .tgroup{margin-bottom:12px}
@@ -192,8 +200,7 @@
   var BASE=(new URLSearchParams(location.search).get('api')||'https://api.cordius.in').replace(/\/$/,'');
   var C='#00D4FF',G='#00C896',R='#FF3B5C',A='#F5A623',MUT='#8892A4';
   var $=function(id){return document.getElementById(id);};
-  var tab='signals', now=Date.now(), last=null, btData=null;
-  var BT_TRADING_DAYS=21;   // BT monthly $ -> ~per-trading-day expectation
+  var tab='signals', now=Date.now(), last=null;
   var ORDER=[22,20,18,16,14,12,6];
   function money(v){return v==null?'—':(v>=0?'+$':'−$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
   function num(v,d){return v==null||isNaN(v)?'—':Number(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});}
@@ -209,7 +216,11 @@
   function pnlCls(v){return v>0?'pos':v<0?'neg':'zero';}
   function statusCls(s){return ({WIN:'s-win',HARD_STOP:'s-stop',OPEN:'s-open',CARRY:'s-carry',SKIP:'s-skip',FLAT:'s-flat'})[s]||'s-flat';}
 
-  // 5-day P&L strip from d.history[hour]: 5 magnitude bars, colour = sign
+  var BTOUT={WIN:{c:'var(--G)',s:'WIN'},HARD_STOP:{c:'var(--R)',s:'STOP'},
+             CARRY:{c:'var(--A)',s:'CARRY'},SKIP:{c:'var(--mut)',s:'SKIP'},FLAT:{c:'var(--mut)',s:'FLAT'}};
+  function btLabel(x){var o=BTOUT[x.bt_outcome]; return o?(o.s+(x.bt_pnl?' '+money(x.bt_pnl):'')):'—';}
+
+  // 5-day P&L strip from d.history[hour]: 5 magnitude bars, colour = sign; tooltip adds same-day BT
   function histStrip(hist, pnl5){
     if(!hist||!hist.length) return '';
     var mx=Math.max.apply(null,hist.map(function(x){return Math.abs(x.pnl)||0;}))||1;
@@ -217,29 +228,34 @@
       var cls=x.pnl>0?'pos':x.pnl<0?'neg':'z';
       var hpx=Math.max(3,Math.round(30*Math.abs(x.pnl)/mx));
       var dow=['Su','Mo','Tu','We','Th','Fr','Sa'][new Date(x.date+'T00:00:00Z').getUTCDay()];
-      return '<div class="hbar" title="'+x.date+': '+money(x.pnl)+'  ('+x.wins+'W/'+x.losses+'L)">'
+      var bt=(x.bt_outcome!=null)?'  |  BT '+btLabel(x):'';
+      return '<div class="hbar" title="'+x.date+': live '+money(x.pnl)+' ('+x.wins+'W/'+x.losses+'L)'+bt+'">'
         +'<div class="hb '+cls+'" style="height:'+hpx+'px"></div><small>'+dow+'</small></div>';
     }).join('');
     return '<div class="hist"><div class="hist-h"><span>5-DAY P&amp;L</span><b class="'+pnlCls(pnl5)+'">'+money(pnl5)+'</b></div>'
       +'<div class="hbars">'+bars+'</div></div>';
   }
 
-  // live-vs-BT block: actual (today / 5-day) beside the BT expectation, + BT quality stats
-  function vsBT(a){
-    var bt=btData&&btData.anchors&&btData.anchors[String(a.hour)];
-    if(!bt) return '';
-    var perDay=bt.monthly_usd/BT_TRADING_DAYS;
-    var sp=btData.meta&&btData.meta.span, yr=sp?sp.slice(0,4)+'–'+sp.split('..')[1].slice(2,4):'2020–26';
-    return '<div class="vsbt"><div class="vsbt-t"><span style="color:var(--dim)">LIVE vs BT</span><span>'+yr+'</span></div>'
+  // LIVE vs SAME-DAY BT: the validated engine run seeded flat at go-live, per session.
+  // Compares like-for-like — same PDC grid, same day — not a 6-year average.
+  function vsBTDay(a, days){
+    days=days||[];
+    if(!days.some(function(x){return x.bt_outcome!=null;})) return '';   // BT not computed yet
+    var rows=days.filter(function(x){
+      return (x.pnl&&x.pnl!==0) || (x.bt_pnl&&x.bt_pnl!==0)
+        || (x.bt_outcome&&x.bt_outcome!=='SKIP'&&x.bt_outcome!=='FLAT');
+    }).map(function(x){
+      var o=BTOUT[x.bt_outcome]||{c:'var(--mut)',s:x.bt_outcome||'—'};
+      return '<div class="btrow"><span class="bd">'+x.date.slice(5)+'</span>'
+        +'<span class="bl '+pnlCls(x.pnl)+'">'+money(x.pnl)+'</span>'
+        +'<span class="bb" style="color:'+o.c+'">'+o.s+(x.bt_pnl?' '+money(x.bt_pnl):'')+'</span></div>';
+    }).join('');
+    if(!rows) rows='<div class="btrow" style="grid-template-columns:1fr;color:var(--dim)">both skipped/flat every session</div>';
+    return '<div class="vsbt"><div class="vsbt-t"><span style="color:var(--dim)">LIVE vs BT</span><span>same-day · seeded flat at go-live</span></div>'
       +'<div class="vsbt-grid">'
-      +'<div class="vc"><span>today</span><b class="'+pnlCls(a.pnl)+'">'+money(a.pnl)+'</b><i>bt ~'+money(perDay)+'</i></div>'
-      +'<div class="vc"><span>5-day</span><b class="'+pnlCls(a.pnl5)+'">'+money(a.pnl5)+'</b><i>bt ~'+money(perDay*5)+'</i></div>'
-      +'</div><div class="vstats">'
-      +'<span class="vpill">Sharpe<b>'+num(bt.sharpe,2)+'</b></span>'
-      +'<span class="vpill">Win<b>'+num(bt.win_rate,1)+'%</b></span>'
-      +'<span class="vpill">Max DD<b>'+num(bt.max_dd_pct,1)+'%</b></span>'
-      +'<span class="vpill">Mo $<b>$'+(bt.monthly_usd/1000).toFixed(1)+'k</b></span>'
-      +'</div></div>';
+      +'<div class="vc"><span>live 5d</span><b class="'+pnlCls(a.pnl5)+'">'+money(a.pnl5)+'</b></div>'
+      +'<div class="vc"><span>bt 5d</span><b class="'+pnlCls(a.bt_pnl5)+'">'+money(a.bt_pnl5!=null?a.bt_pnl5:0)+'</b></div>'
+      +'</div><div class="btrows"><div class="btrow bthdr"><span>day</span><span>live</span><span>bt (same session)</span></div>'+rows+'</div></div>';
   }
 
   function renderGrid(d){
@@ -249,7 +265,7 @@
       var a=byHour[h]; if(!a) return '';
       if(a.state==='pending'){
         return '<div class="anchor pending"><div class="a-top"><div><div class="a-hour">'+String(h).padStart(2,'0')+':00 <small>UTC</small></div><div class="a-acct">no audit rows yet</div></div><span class="chip c-pend">IDLE</span></div><div class="status s-flat">AWAITING FIRST TRADE</div><div class="pnl zero">—</div>'
-          +vsBT(a)+'</div>';
+          +vsBTDay(a,hist[String(h)])+'</div>';
       }
       var glow=a.status==='WIN'?' win':a.status==='HARD_STOP'?' stop':'';
       var modeCls=a.mode==='LONG'?'c-long':a.mode==='SHORT'?'c-short':'c-neutral';
@@ -266,7 +282,7 @@
         +'<div class="sig"><span class="s"><span style="color:var(--G)">✓ passed</span> <span class="n" style="color:var(--G)">'+a.sig_pass+'</span></span>'
         +'<span class="s"><span style="color:var(--R)">✗ failed</span> <span class="n" style="color:var(--R)">'+a.sig_fail+'</span></span></div>'
         +histStrip(hist[String(h)],a.pnl5)
-        +vsBT(a)
+        +vsBTDay(a,hist[String(h)])
         +'</div>';
     }).join('');
   }
@@ -385,13 +401,8 @@
         if(!last) renderEmpty();          // no fabricated data — real feed or empty state only
       });
   }
-  // BT expectation sidecar (static, published from the per-anchor Fargate sweep).
-  // Same-origin on GitHub Pages; refreshed only when the BT is re-run. Non-fatal.
-  fetch('pdc-floor-bt.json',{cache:'no-store'})
-    .then(function(r){return r.ok?r.json():null;})
-    .then(function(b){if(b&&b.anchors){btData=b; if(last)renderGrid(last);}})
-    .catch(function(){});
-
+  // Same-day BT now arrives inside /pdc/floor (history[].bt_pnl/bt_outcome), written
+  // by the daily Fargate BT into pdc_bt_daily — no static sidecar / average.
   renderEmpty(); tick(); setInterval(tick,5000);
 })();
 </script>
