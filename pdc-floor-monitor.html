@@ -207,6 +207,10 @@
   var $=function(id){return document.getElementById(id);};
   var tab='signals', now=Date.now(), last=null;
   var ORDER=[22,20,18,16,14,12,6];
+  // cTrader internal ctid -> external login (the number shown in the broker terminal).
+  // Static reference from docs/reference/ctrader-accounts.json; endpoint returns ctid as `account`.
+  var LOGIN_BY_CTID={46947089:5266048,47167724:5281126,47237563:5284310,46676283:5245687,47824036:5308071};
+  function loginOf(a){return (a&&a.login)||(a&&LOGIN_BY_CTID[a.account])||null;}
   function money(v){return v==null?'—':(v>=0?'+$':'−$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
   function num(v,d){return v==null||isNaN(v)?'—':Number(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});}
   function ago(iso){var ms=now-new Date(iso).getTime();if(isNaN(ms))return '';var m=Math.floor(ms/60000);if(m<1)return 'now';if(m<60)return m+'m';var h=Math.floor(m/60);return h<24?h+'h':Math.floor(h/24)+'d';}
@@ -300,7 +304,7 @@
       var modeCls=a.mode==='LONG'?'c-long':a.mode==='SHORT'?'c-short':'c-neutral';
       return '<div class="anchor'+glow+(isNext?' next':'')+'">'
         +'<div class="a-top"><div><div class="a-hour">'+String(h).padStart(2,'0')+':00 <small>UTC</small></div>'
-        +'<div class="a-acct">acct '+a.account+(a.login?' · login '+a.login:'')+'</div></div>'
+        +'<div class="a-acct">'+(loginOf(a)?'login '+loginOf(a)+' · ':'')+'acct '+a.account+'</div></div>'
         +'<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">'
         +nextChip+'<span class="chip c-live">LIVE</span><span class="chip '+modeCls+'">'+(a.mode||'—')+'</span></div></div>'
         +'<span class="status '+statusCls(a.status)+'">'+(a.status||'—')+'</span>'
@@ -373,7 +377,7 @@
       var rows=groups[h], a=byHour[h]||{};
       var sum=rows.reduce(function(s,x){return s+(x.pnl||0);},0);
       var head='<div class="tg-head"><span class="th">'+String(h).padStart(2,'0')+'h</span>'
-        +'<span class="ta">'+(a.account?'acct '+a.account:'')+(a.mode?' · '+a.mode:'')+'</span>'
+        +'<span class="ta">'+(loginOf(a)?'login '+loginOf(a):(a.account?'acct '+a.account:''))+(a.account?' · acct '+a.account:'')+(a.mode?' · '+a.mode:'')+'</span>'
         +'<span class="ts '+pnlCls(sum)+'">'+money(sum)+' <span class="tn">'+rows.length+' trades</span></span></div>';
       var body='<table><tbody>'+rows.map(function(x){
         var st=x.status,stc=st==='CLOSED'?(x.pnl>=0?'t-pass':'t-fail'):st==='CARRY'?'t-hedge':st==='HEDGED'?'t-hedge':'t-skip';
