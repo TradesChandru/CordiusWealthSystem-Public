@@ -59,6 +59,8 @@
   .s-carry{background:rgba(245,166,35,.14);color:var(--A);border:1px solid rgba(245,166,35,.3)}
   .s-skip,.s-flat{background:rgba(255,255,255,.06);color:var(--mut);border:1px solid var(--line2)}
   .pnl{font-family:var(--font-mono);font-size:26px;font-weight:700;letter-spacing:-.5px;line-height:1}
+  .a-net{font-family:var(--font-mono);font-size:12px;margin-top:3px;color:var(--mut)}
+  .a-net b{font-weight:700} .a-net .cx{color:var(--dim);font-size:10px}
   .pos{color:var(--G)} .neg{color:var(--R)} .zero{color:var(--mut)}
   .a-kv{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);padding:2px 0}
   .a-kv b{color:var(--sec);font-weight:600;font-family:var(--font-mono)}
@@ -309,6 +311,7 @@
         +nextChip+'<span class="chip c-live">LIVE</span><span class="chip '+modeCls+'">'+(a.mode||'—')+'</span></div></div>'
         +'<span class="status '+statusCls(a.status)+'">'+(a.status||'—')+'</span>'
         +'<div class="pnl '+pnlCls(a.pnl)+'">'+money(a.pnl)+'</div>'
+        +((a.net!=null)?'<div class="a-net">net <b class="'+pnlCls(a.net)+'">'+money(a.net)+'</b> <span class="cx">after comm '+money(-(a.commission||0))+'</span></div>':'')
         +'<div><div class="a-kv"><span>PDC</span><b>'+num(a.pdc,2)+'</b></div>'
         +'<div class="a-kv"><span>Step</span><b>'+num(a.step,2)+'</b></div>'
         +'<div class="a-kv"><span>Open positions</span><b>'+a.n_open+'</b></div></div>'
