@@ -218,6 +218,42 @@
   function ago(iso){var ms=now-new Date(iso).getTime();if(isNaN(ms))return '';var m=Math.floor(ms/60000);if(m<1)return 'now';if(m<60)return m+'m';var h=Math.floor(m/60);return h<24?h+'h':Math.floor(h/24)+'d';}
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];});}
 
+  // ---- flicker-free rendering -------------------------------------------------
+  // Every 5s tick used to do `el.innerHTML = <freshly built string>`, which tears
+  // the whole pane down and rebuilds it — the empty-then-refilled frame is the
+  // visible blink. setHTML() instead updates the DOM *in place* (morph): it walks
+  // the old and new trees together and touches ONLY the text nodes and attributes
+  // that actually changed. When nothing changed (the common case between events)
+  // it does nothing at all; when only the countdown ticks over, it edits that one
+  // text node. No teardown -> no flicker. Only the data refreshes, as intended.
+  function setHTML(el, html){
+    if(el.__html===html) return;                 // identical since last time -> no-op
+    el.__html=html;
+    var tmp=document.createElement('div'); tmp.innerHTML=html;
+    morphChildren(el, tmp);
+  }
+  function morphChildren(from, to){
+    var a=from.firstChild, b=to.firstChild;
+    while(a && b){
+      var an=a.nextSibling, bn=b.nextSibling;
+      if(a.nodeType!==b.nodeType || a.nodeName!==b.nodeName){
+        from.replaceChild(b, a);                 // structural mismatch -> swap the node in
+      } else if(a.nodeType===3){                 // text node
+        if(a.nodeValue!==b.nodeValue) a.nodeValue=b.nodeValue;
+      } else {                                   // element -> sync attrs, recurse into children
+        morphAttrs(a, b); morphChildren(a, b);
+      }
+      a=an; b=bn;
+    }
+    while(b){ var bn2=b.nextSibling; from.appendChild(b); b=bn2; }   // new trailing nodes
+    while(a){ var an2=a.nextSibling; from.removeChild(a); a=an2; }   // stale trailing nodes
+  }
+  function morphAttrs(a, b){
+    var i, nm;
+    for(i=a.attributes.length-1;i>=0;i--){ nm=a.attributes[i].name; if(!b.hasAttribute(nm)) a.removeAttribute(nm); }
+    for(i=0;i<b.attributes.length;i++){ var at=b.attributes[i]; if(a.getAttribute(at.name)!==at.value) a.setAttribute(at.name, at.value); }
+  }
+
   function setStatus(mode){
     var el=$('statusPill'),dot=$('dot'),tx=$('statusText');
     if(mode==='online'){el.style.background='rgba(0,200,150,.1)';el.style.color=G;dot.style.background=G;tx.textContent='LIVE';}
@@ -294,7 +330,7 @@
     var byHour={}; d.anchors.forEach(function(a){byHour[a.hour]=a;});
     var hist=d.history||{};
     var nx=activeAnchor();
-    $('grid').innerHTML=ORDER.map(function(h){
+    var _grid=ORDER.map(function(h){
       var a=byHour[h]; if(!a) return '';
       var isNext=(h===nx.hour);
       var nextChip=isNext?'<span class="chip c-next" title="active reference; hands over to '+String(nx.next).padStart(2,'0')+':00 in '+nx.cd+'">ACTIVE · →'+String(nx.next).padStart(2,'0')+'h '+nx.cd+'</span>':'';
@@ -321,6 +357,7 @@
         +vsBTDay(a,hist[String(h)])
         +'</div>';
     }).join('');
+    setHTML($('grid'), _grid);
   }
 
   var KMETA={
@@ -366,17 +403,16 @@
         +dir+'<span class="px">'+px+'</span><span class="r">'+right+'</span></div>';
     }).join('');
     if(!rows) rows='<div class="srow" style="color:var(--dim);grid-template-columns:1fr">no events for this anchor</div>';
-    $('pane-signals').innerHTML='<div class="sig-bar"><div class="sig-stats">'+stats+'</div><div class="sig-filters">'+chips+'</div></div>'+rows;
-    Array.prototype.forEach.call($('pane-signals').querySelectorAll('.fchip'),function(b){
-      b.addEventListener('click',function(){var f=b.getAttribute('data-f');sigFilter=(f==='all')?'all':+f;renderSignals(last||d);});
-    });
+    // Filter clicks are handled once, via delegation on the pane (see init below),
+    // so morphing the chips in place here never orphans or double-binds a listener.
+    setHTML($('pane-signals'), '<div class="sig-bar"><div class="sig-stats">'+stats+'</div><div class="sig-filters">'+chips+'</div></div>'+rows);
   }
   function renderTrades(d){
     var tr=(d.trades||[]);
-    if(!tr.length){$('pane-trades').innerHTML='<div style="padding:12px;color:var(--dim);font-size:12px">no trades in the last 5 days</div>';return;}
+    if(!tr.length){setHTML($('pane-trades'),'<div style="padding:12px;color:var(--dim);font-size:12px">no trades in the last 5 days</div>');return;}
     var groups={}; tr.forEach(function(x){(groups[x.hour]=groups[x.hour]||[]).push(x);});
     var byHour={}; (d.anchors||[]).forEach(function(a){byHour[a.hour]=a;});
-    $('pane-trades').innerHTML=ORDER.filter(function(h){return groups[h];}).map(function(h){
+    var _trades=ORDER.filter(function(h){return groups[h];}).map(function(h){
       var rows=groups[h], a=byHour[h]||{};
       var sum=rows.reduce(function(s,x){return s+(x.pnl||0);},0);
       var head='<div class="tg-head"><span class="th">'+String(h).padStart(2,'0')+'h</span>'
@@ -391,6 +427,7 @@
       }).join('')+'</tbody></table>';
       return '<div class="tgroup">'+head+body+'</div>';
     }).join('');
+    setHTML($('pane-trades'), _trades);
   }
 
   function render(d,mode){
@@ -424,6 +461,16 @@
       Array.prototype.forEach.call(document.querySelectorAll('.tab'),function(x){x.classList.toggle('on',x===b);});
       ['signals','trades'].forEach(function(p){$('pane-'+p).classList.toggle('hide',p!==tab);});
     });
+  });
+
+  // Signals filter chips — bound ONCE via delegation on the pane (the chips
+  // themselves are morphed in place each tick, so re-binding per render would
+  // stack duplicate listeners). Clicking a chip re-renders with the new filter.
+  $('pane-signals').addEventListener('click',function(e){
+    var b=e.target.closest?e.target.closest('.fchip'):null;
+    if(!b || !$('pane-signals').contains(b)) return;
+    var f=b.getAttribute('data-f'); sigFilter=(f==='all')?'all':+f;
+    if(last) renderSignals(last);
   });
 
   function tick(){
