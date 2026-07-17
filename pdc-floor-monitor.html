@@ -64,9 +64,50 @@
   .pos{color:var(--G)} .neg{color:var(--R)} .zero{color:var(--mut)}
   .a-kv{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);padding:2px 0}
   .a-kv b{color:var(--sec);font-weight:600;font-family:var(--font-mono)}
+  .a-kv .cx{font-size:9px;color:var(--dim);font-weight:400;letter-spacing:.2px}
+  /* CARRY: yesterday's risk still on the table, and it blocks new entries. It used to be
+     indistinguishable from a fresh intraday book — both just read OPEN. */
+  .carry-note{margin:7px 0 2px;padding:6px 8px;border-radius:6px;font-size:10.5px;line-height:1.45;
+    color:var(--A);background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.22)}
+  .model-note{margin:0 0 12px;padding:9px 12px;border-radius:7px;font-size:11.5px;line-height:1.5;
+    color:var(--mut);background:rgba(0,212,255,.045);border:1px solid rgba(0,212,255,.14)}
+  .model-note b{color:var(--sec);font-weight:600} .model-note i{color:var(--sec);font-style:italic}
+  /* trades filter bar */
+  .tfilter{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:9px 10px;
+    border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card);z-index:2}
+  .tfilter .fl{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--dim);margin-right:2px}
+  #pane-trades thead th{font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--dim);
+    font-weight:600;text-align:left;padding:4px 8px;border-bottom:1px solid var(--line)}
+  #pane-trades thead th:nth-child(n+4){text-align:right}
+  #pane-trades tbody td:nth-child(n+4){text-align:right}
   .sig{display:flex;gap:14px;padding-top:9px;border-top:1px solid var(--line);font-size:11px}
   .sig .s{display:flex;align-items:center;gap:5px}
   .sig .n{font-family:var(--font-mono);font-weight:700;font-size:13px}
+  /* grid rungs filled today (replaces passed/failed) */
+  .rungs{display:flex;align-items:center;gap:8px;padding-top:9px;margin-top:2px;border-top:1px solid var(--line);font-size:11px}
+  .rungs .rl{color:var(--mut)}
+  .rungs .rv{font-family:var(--font-mono);font-weight:700;font-size:13px;margin-left:auto}
+  .rungs .rv.full{color:var(--G)} .rungs .rv.part{color:var(--A)} .rungs .rv.none{color:var(--mut)}
+  .rungs .rej{font-family:var(--font-mono);font-weight:700;font-size:11px;color:var(--R);
+    background:rgba(255,59,92,.12);border:1px solid rgba(255,59,92,.3);border-radius:6px;padding:1px 7px}
+  /* FTMO compliance block */
+  .ftmo{padding-top:10px;margin-top:2px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:7px}
+  .ftmo-t{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--C);opacity:.85;display:flex;justify-content:space-between;align-items:baseline}
+  .ftmo-t .cx{font-size:9px;letter-spacing:.2px;color:var(--dim);text-transform:none}
+  .ft-row{display:flex;flex-direction:column;gap:4px}
+  .ft-h{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--mut)}
+  .ft-h b{font-family:var(--font-mono);font-weight:700;font-size:12px;color:var(--sec)}
+  .ft-h .cx{font-size:9px;color:var(--dim);font-weight:400}
+  .ft-h small.cx{font-weight:400}
+  .ftbar{height:5px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden}
+  .ftbar-f{height:100%;border-radius:3px;transition:width .4s,background .4s;min-width:2px}
+  .ft-acct{font-size:10px;color:var(--mut);padding-top:1px}
+  .ft-acct b{font-family:var(--font-mono);font-weight:700;color:var(--sec)}
+  .ft-acct .cx{color:var(--dim)}
+  .ft-env{display:flex;flex-direction:column;gap:2px;font-size:10px;color:var(--mut);padding-top:2px}
+  .ft-env .ft-e{display:flex;justify-content:space-between}
+  .ft-env b{font-family:var(--font-mono);font-weight:700}
+  .ft-env .cx{color:var(--dim)}
 
   /* 5-day P&L strip (anchor widget history) */
   .hist{padding-top:9px;border-top:1px solid var(--line)}
@@ -131,7 +172,9 @@
   .t-hedge{background:rgba(245,166,35,.14);color:var(--A)}
   /* signals view — summary bar + filters + rich rows */
   .sig-bar{position:sticky;top:-6px;z-index:2;background:var(--card);padding:2px 4px 9px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px;margin-bottom:4px}
-  .sig-stats{display:flex;gap:6px;flex-wrap:wrap}
+  .sig-stats{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .win-lbl{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);
+    border:1px solid var(--line2);border-radius:5px;padding:2px 6px;margin-right:2px;white-space:nowrap}
   .kchip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:7px;background:var(--card2);border:1px solid var(--line);font-size:11px;color:var(--mut)}
   .kchip b{font-family:var(--font-mono);font-weight:700;font-size:12px}
   .sig-filters{display:flex;gap:6px;flex-wrap:wrap}
@@ -181,6 +224,13 @@
   </header>
 
   <div id="banner" class="banner"></div>
+  <!-- The board is ordered by anchor hour ascending and used to imply the anchor hour was a
+       trade time. It is not. Say the model out loud so the layout stops teaching it wrong. -->
+  <div class="model-note">
+    <b>All desks arm together at 00:00 UTC</b> and trade the whole UTC day — direction, grid and
+    skip are locked once at the roll. An anchor hour is when that desk <b>samples its PDC</b> for
+    the <i>next</i> session, not when it trades. Cards run in sampling order, h06 → h22.
+  </div>
   <div id="grid" class="grid"></div>
 
   <div class="panel">
@@ -208,11 +258,17 @@
   var C='#00D4FF',G='#00C896',R='#FF3B5C',A='#F5A623',MUT='#8892A4';
   var $=function(id){return document.getElementById(id);};
   var tab='signals', now=Date.now(), last=null;
-  var ORDER=[22,20,18,16,14,12,6];
-  // cTrader internal ctid -> external login (the number shown in the broker terminal).
-  // Static reference from docs/reference/ctrader-accounts.json; endpoint returns ctid as `account`.
-  var LOGIN_BY_CTID={46947089:5266048,47167724:5281126,47237563:5284310,46676283:5245687,47824036:5308071};
-  function loginOf(a){return (a&&a.login)||(a&&LOGIN_BY_CTID[a.account])||null;}
+  // EXECUTION ORDER — ascending. Every desk ARMS together at the 00:00 UTC roll and trades the
+  // whole UTC day. The anchor hour is NOT a "trade now" trigger: it is when that desk SAMPLES the
+  // PDC that becomes the NEXT session's grid reference. Ascending is the real sequence of events
+  // in a day — h06 samples first, h22 last. (Descending read as a ranking, and taught the wrong
+  // model.) h22's reference is only 2h old at the roll, which is why it skips ~15% of days where
+  // h06 — whose reference waits 18h and drifts past the $20 gate — skips ~50%.
+  var ORDER=[6,12,14,16,18,20,22];
+  // login now comes from /floor (backed by pdc_account_map). A hardcoded LOGIN_BY_CTID map used to
+  // live here and was MISSING h06/h16 — a stale hardcoded map, in a PUBLIC page, that rots on every
+  // new account. Deleted; the endpoint is authoritative.
+  function loginOf(a){return (a&&a.login)||null;}
   function money(v){return v==null?'—':(v>=0?'+$':'−$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
   function num(v,d){return v==null||isNaN(v)?'—':Number(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});}
   function ago(iso){var ms=now-new Date(iso).getTime();if(isNaN(ms))return '';var m=Math.floor(ms/60000);if(m<1)return 'now';if(m<60)return m+'m';var h=Math.floor(m/60);return h<24?h+'h':Math.floor(h/24)+'d';}
@@ -326,6 +382,57 @@
     var m=Math.max(0,Math.round((na-nd)/60000));
     return {hour:active, next:next, cd:(m>=60?Math.floor(m/60)+'h '+(m%60)+'m':m+'m')};
   }
+  // RUNGS — replaces the old "✓ passed / ✗ failed" pair. sig_pass was really "how many grid
+  // rungs filled today" (~always 0 or MAX_OPEN), so it just restated the status; sig_fail
+  // (broker ENTRY_REJECT) has effectively never fired, so a permanent "✗ 0" read like a health
+  // check that wasn't checking anything. Now: rungs filled / cap (grid depth reached today), and
+  // the reject count appears ONLY when it is non-zero — where it actually means something.
+  function rungsBar(a){
+    var fill=a.rungs_filled!=null?a.rungs_filled:a.sig_pass, mx=a.rungs_max!=null?a.rungs_max:null;
+    var rej=a.rejects!=null?a.rejects:a.sig_fail;
+    var full=(mx!=null&&fill>=mx);
+    var lbl=(mx!=null)?(fill+' / '+mx):String(fill);
+    var rejChip=(rej>0)?'<span class="rej" title="broker rejected '+rej+' grid order(s) today">✗ '+rej+' rejected</span>':'';
+    return '<div class="rungs"><span class="rl">grid rungs filled</span>'
+      +'<span class="rv'+(full?' full':(fill>0?' part':' none'))+'">'+lbl+'</span>'+rejChip+'</div>';
+  }
+
+  // FTMO COMPLIANCE — the headroom the desk has left on its $100k budget. FTMO measures EQUITY
+  // (mark-to-market), so this reads from max_adverse/peak_pnl (the intraday trough/peak of
+  // open+realised), NOT realised P&L. Daily-loss headroom is EXACT (today's trough vs the 5%
+  // limit); the overall floor uses an est. balance (base + all-time realised) with today's live
+  // trough layered below it. A skipping desk has no trough today -> daily row shows "flat".
+  function ftmoBar(used, limit, pct){
+    var p=Math.min(100,Math.max(0,pct||0));
+    var col=p>=80?'var(--R)':p>=50?'var(--A)':'var(--G)';
+    return '<div class="ftbar"><div class="ftbar-f" style="width:'+p+'%;background:'+col+'"></div></div>';
+  }
+  function seedShort(iso){ if(!iso) return ''; var p=iso.split('-'); return p.length===3?(p[1]+'/'+p[2]):iso; }
+  function ftmoBlock(a){
+    var f=a.ftmo; if(!f) return '';
+    var dd=a.dd_today, ddw=a.dd_worst, pk=a.peak_today, pkb=a.peak_best;
+    // DAILY-LOSS row (exact): today's intraday trough vs the fixed $5k daily limit.
+    var dailyPct=f.daily_pct;
+    var dailyRow = (dd!=null)
+      ? '<div class="ft-row"><div class="ft-h"><span>Daily loss <small class="cx">used / $5k limit</small></span>'
+          +'<b class="'+(dailyPct>=80?'neg':'')+'">'+money(-(f.daily_used))+' <span class="cx">· '+money(f.daily_headroom)+' left</span></b></div>'
+          +ftmoBar(f.daily_used,f.daily_limit,dailyPct)+'</div>'
+      : '<div class="ft-row"><div class="ft-h"><span>Daily loss <small class="cx">used / $5k limit</small></span>'
+          +'<b class="zero">flat today</b></div></div>';
+    // TOTAL-LOSS row (est.): fixed $10k budget from the seed date; floor is static at seed−$10k.
+    var tPct=f.total_pct_est;
+    var balDelta=f.balance_est-f.seed_balance;
+    var tRow='<div class="ft-row"><div class="ft-h"><span>Total loss <small class="cx">used / $10k · since '+seedShort(f.seed_date)+'</small></span>'
+      +'<b class="'+(tPct>=80?'neg':'')+'">'+money(-(f.total_used_est))+' <span class="cx">· '+money(f.total_headroom_est)+' left</span></b></div>'
+      +ftmoBar(f.total_used_est,f.total_limit,tPct)+'</div>';
+    // account line: seed balance + net since seed = est. balance (equity may differ from balance)
+    var acct='<div class="ft-acct"><span>bal est <b>'+money(f.balance_est).replace('+$','$')+'</b> <span class="cx">= '+money(f.seed_balance).replace('+$','$')+' seed '+(balDelta>=0?'+':'−')+'$'+num(Math.abs(balDelta),0)+' net</span></span></div>';
+    // intraday envelope: today's peak/trough + all-time extremes (the sizing reality)
+    var env='<div class="ft-env"><span class="ft-e"><span class="cx">today</span> peak <b class="pos">'+(pk!=null?money(pk):'—')+'</b> · trough <b class="neg">'+(dd!=null?money(dd):'—')+'</b></span>'
+      +'<span class="ft-e"><span class="cx">worst ever</span> <b class="neg">'+(ddw!=null?money(ddw):'—')+'</b>'+(pkb!=null?' · best <b class="pos">'+money(pkb)+'</b>':'')+'</span></div>';
+    return '<div class="ftmo"><div class="ftmo-t">FTMO COMPLIANCE <span class="cx">$10k total · $5k daily · mark-to-market</span></div>'+dailyRow+tRow+acct+env+'</div>';
+  }
+
   function renderGrid(d){
     var byHour={}; d.anchors.forEach(function(a){byHour[a.hour]=a;});
     var hist=d.history||{};
@@ -348,11 +455,20 @@
         +'<span class="status '+statusCls(a.status)+'">'+(a.status||'—')+'</span>'
         +'<div class="pnl '+pnlCls(a.pnl)+'">'+money(a.pnl)+'</div>'
         +((a.net!=null)?'<div class="a-net">net <b class="'+pnlCls(a.net)+'">'+money(a.net)+'</b> <span class="cx">after comm '+money(-(a.commission||0))+'</span></div>':'')
+        +(a.is_carry?'<div class="carry-note">CARRY — yesterday’s book is still open. New entries are blocked this session (FIX4); it manages to close.</div>':'')
         +'<div><div class="a-kv"><span>PDC</span><b>'+num(a.pdc,2)+'</b></div>'
         +'<div class="a-kv"><span>Step</span><b>'+num(a.step,2)+'</b></div>'
-        +'<div class="a-kv"><span>Open positions</span><b>'+a.n_open+'</b></div></div>'
-        +'<div class="sig"><span class="s"><span style="color:var(--G)">✓ passed</span> <span class="n" style="color:var(--G)">'+a.sig_pass+'</span></span>'
-        +'<span class="s"><span style="color:var(--R)">✗ failed</span> <span class="n" style="color:var(--R)">'+a.sig_fail+'</span></span></div>'
+        +'<div class="a-kv"><span>Open positions</span><b>'+a.n_open+'</b></div>'
+        // ---- what this desk is actually RUNNING. The lots are NOT uniform any more
+        // (h14 0.22, h16 0.09) and target/stop DERIVE from lot, so the board has to say so.
+        +'<div class="a-kv"><span>Lot <small class="cx">last session</small></span><b>'+(a.lot!=null?num(a.lot,2):'—')+'</b></div>'
+        +'<div class="a-kv"><span>Target / stop</span><b>'+(a.target!=null?('$'+num(a.target,0)+' / '+num(a.hard_stop_mult,0)+'×step'):'—')+'</b></div>'
+        // the multiplier alone does not tell you the money: step is price-banded, so show the $
+        +'<div class="a-kv"><span>Stop today</span><b>'+(a.hard_stop_usd!=null?('−$'+num(a.hard_stop_usd,0)):'—')+'</b></div>'
+        +'<div class="a-kv"><span>Bars</span><b>'+(a.bar_seconds!=null?(a.bar_seconds===300?'5-min <small class="cx">BT parity</small>':(a.bar_seconds/60)+'-min'):'—')+'</b></div>'
+        +'<div class="a-kv"><span>Samples PDC</span><b>'+(a.samples_utc||'—')+' <small class="cx">UTC</small></b></div></div>'
+        +ftmoBlock(a)
+        +rungsBar(a)
         +histStrip(hist[String(h)],a.pnl5)
         +vsBTDay(a,hist[String(h)])
         +'</div>';
@@ -373,21 +489,38 @@
   };
   var STAT_ORDER=['ENTRY','ENTRY_REJECT','HEDGE_FILLED','UNWIND','EXIT','ORPHAN_CLOSED'];
   var sigFilter='all';
+  var trFilter='all', trOut='all';   // trades pane: by desk, by outcome
+  function bindTradeChips(){
+    var p=$('pane-trades'); if(!p) return;
+    p.querySelectorAll('button[data-tf]').forEach(function(b){
+      b.onclick=function(){ var v=b.getAttribute('data-tf'); trFilter=(v==='all')?'all':+v; if(last) renderTrades(last); };
+    });
+    p.querySelectorAll('button[data-to]').forEach(function(b){
+      b.onclick=function(){ trOut=b.getAttribute('data-to'); if(last) renderTrades(last); };
+    });
+  }
   function clock(ts){return (ts||'').slice(11,19);}
 
   function renderSignals(d){
     var sigs=d.signals||[], kinds=d.kinds||{};
     var anchors=(d.anchors||[]).filter(function(a){return a.state==='live';});
-    // ── summary: per-kind daily totals ──
+    // ── summary: per-kind totals. NOTE these are a 5-DAY window (d.kinds is fed by a
+    //    session_date > today-5 query), whereas the per-anchor chips below are TODAY only.
+    //    They used to sit unlabelled side by side — two different windows reading as one. ──
     var stats=STAT_ORDER.filter(function(k){return kinds[k];}).map(function(k){
       var m=KMETA[k]; return '<span class="kchip"><span class="'+m.cls+'">'+m.ic+'</span>'+m.lbl+' <b class="'+m.cls+'">'+kinds[k]+'</b></span>';
     }).join('');
-    if(!stats) stats='<span class="kchip" style="color:var(--dim)">no signals today yet</span>';
-    // ── filter chips: ALL + per live anchor (with ✓/✗ counts) ──
-    var tp=anchors.reduce(function(s,a){return s+(a.sig_pass||0);},0);
-    var tf=anchors.reduce(function(s,a){return s+(a.sig_fail||0);},0);
-    var chips='<button class="fchip'+(sigFilter==='all'?' on':'')+'" data-f="all">ALL<span class="c">✓'+tp+' ✗'+tf+'</span></button>'
-      +anchors.map(function(a){return '<button class="fchip'+(String(sigFilter)==String(a.hour)?' on':'')+'" data-f="'+a.hour+'">'+a.tag+'<span class="c">✓'+a.sig_pass+' ✗'+a.sig_fail+'</span></button>';}).join('');
+    if(!stats) stats='<span class="kchip" style="color:var(--dim)">no signals in the last 5 days</span>';
+    stats='<span class="win-lbl">last 5 days</span>'+stats;
+    // ── filter chips: ALL + per live anchor. Counts are TODAY's grid rungs filled (✓) and
+    //    broker rejects (✗ — shown only where non-zero, since it is otherwise always 0). ──
+    var tp=anchors.reduce(function(s,a){return s+(a.rungs_filled!=null?a.rungs_filled:a.sig_pass||0);},0);
+    var tf=anchors.reduce(function(s,a){return s+(a.rejects!=null?a.rejects:a.sig_fail||0);},0);
+    function cnt(fill,rej){return '<span class="c">'+fill+(rej>0?' <span class="neg">✗'+rej+'</span>':'')+'</span>';}
+    var chips='<span class="win-lbl">today</span>'
+      +'<button class="fchip'+(sigFilter==='all'?' on':'')+'" data-f="all">ALL'+cnt(tp,tf)+'</button>'
+      +anchors.map(function(a){var fl=a.rungs_filled!=null?a.rungs_filled:a.sig_pass,rj=a.rejects!=null?a.rejects:a.sig_fail;
+        return '<button class="fchip'+(String(sigFilter)==String(a.hour)?' on':'')+'" data-f="'+a.hour+'">'+a.tag+cnt(fl,rj)+'</button>';}).join('');
     // ── feed rows (filtered) ──
     var feed=sigs.filter(function(x){return sigFilter==='all'||String(x.hour)===String(sigFilter);});
     var rows=feed.map(function(x){
@@ -410,17 +543,50 @@
   function renderTrades(d){
     var tr=(d.trades||[]);
     if(!tr.length){setHTML($('pane-trades'),'<div style="padding:12px;color:var(--dim);font-size:12px">no trades in the last 5 days</div>');return;}
-    var groups={}; tr.forEach(function(x){(groups[x.hour]=groups[x.hour]||[]).push(x);});
     var byHour={}; (d.anchors||[]).forEach(function(a){byHour[a.hour]=a;});
-    var _trades=ORDER.filter(function(h){return groups[h];}).map(function(h){
+
+    // FILTERS — the pane used to dump every trade of every desk into one endless scroll, so
+    // finding a single desk's day meant hunting. Filter by desk and by outcome; the counts sit
+    // on the chips so you can see where the action is without opening anything.
+    var winners=tr.filter(function(x){return x.pnl>0;}).length;
+    var losers=tr.filter(function(x){return x.pnl!=null&&x.pnl<=0;}).length;
+    var hrs=ORDER.filter(function(h){return tr.some(function(x){return x.hour===h;});});
+    var chips='<div class="tfilter"><span class="fl">desk</span>'
+      +'<button class="fchip'+(trFilter==='all'?' on':'')+'" data-tf="all">ALL<span class="c">'+tr.length+'</span></button>'
+      +hrs.map(function(h){
+          var n=tr.filter(function(x){return x.hour===h;}).length;
+          var s=tr.filter(function(x){return x.hour===h;}).reduce(function(t,x){return t+(x.pnl||0);},0);
+          return '<button class="fchip'+(String(trFilter)===String(h)?' on':'')+'" data-tf="'+h+'">h'
+            +String(h).padStart(2,'0')+'<span class="c '+pnlCls(s)+'">'+n+'</span></button>';
+        }).join('')
+      +'<span class="fl" style="margin-left:10px">outcome</span>'
+      +'<button class="fchip'+(trOut==='all'?' on':'')+'" data-to="all">ANY</button>'
+      +'<button class="fchip'+(trOut==='win'?' on':'')+'" data-to="win">WINNERS<span class="c pos">'+winners+'</span></button>'
+      +'<button class="fchip'+(trOut==='loss'?' on':'')+'" data-to="loss">LOSERS<span class="c neg">'+losers+'</span></button>'
+      +'</div>';
+
+    var shown=tr.filter(function(x){
+      if(trFilter!=='all' && String(x.hour)!==String(trFilter)) return false;
+      if(trOut==='win'  && !(x.pnl>0)) return false;
+      if(trOut==='loss' && !(x.pnl!=null&&x.pnl<=0)) return false;
+      return true;
+    });
+    if(!shown.length){
+      setHTML($('pane-trades'), chips+'<div style="padding:12px;color:var(--dim);font-size:12px">no trades match this filter</div>');
+      bindTradeChips(); return;
+    }
+    var groups={}; shown.forEach(function(x){(groups[x.hour]=groups[x.hour]||[]).push(x);});
+    var _trades=chips+ORDER.filter(function(h){return groups[h];}).map(function(h){
       var rows=groups[h], a=byHour[h]||{};
       var sum=rows.reduce(function(s,x){return s+(x.pnl||0);},0);
       var head='<div class="tg-head"><span class="th">'+String(h).padStart(2,'0')+'h</span>'
         +'<span class="ta">'+(loginOf(a)?'login '+loginOf(a):(a.account?'acct '+a.account:''))+(a.account?' · acct '+a.account:'')+(a.mode?' · '+a.mode:'')+'</span>'
         +'<span class="ts '+pnlCls(sum)+'">'+money(sum)+' <span class="tn">'+rows.length+' trades</span></span></div>';
-      var body='<table><tbody>'+rows.map(function(x){
+      // a header row: the columns were unlabelled, so every number needed decoding
+      var body='<table><thead><tr><th>when</th><th>level</th><th>position</th><th>lots</th><th>P&amp;L</th><th>state</th></tr></thead><tbody>'
+        +rows.map(function(x){
         var st=x.status,stc=st==='CLOSED'?(x.pnl>=0?'t-pass':'t-fail'):st==='CARRY'?'t-hedge':st==='HEDGED'?'t-hedge':'t-skip';
-        return '<tr><td class="m" style="color:var(--dim)">'+ago(x.ts)+'</td>'
+        return '<tr><td class="m" style="color:var(--dim)" title="'+esc(x.ts)+'">'+ago(x.ts)+'</td>'
           +'<td class="m">'+num(x.level,2)+'</td><td class="m" style="color:var(--mut)">'+esc(x.pos_id)+'</td>'
           +'<td class="m">'+num(x.lots,2)+'</td><td class="m '+pnlCls(x.pnl)+'">'+(x.pnl!=null?money(x.pnl):'—')+'</td>'
           +'<td><span class="tag '+stc+'">'+st+'</span></td></tr>';
@@ -428,6 +594,7 @@
       return '<div class="tgroup">'+head+body+'</div>';
     }).join('');
     setHTML($('pane-trades'), _trades);
+    bindTradeChips();
   }
 
   function render(d,mode){
