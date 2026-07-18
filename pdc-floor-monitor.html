@@ -26,6 +26,12 @@
   header{height:48px;flex:0 0 48px;display:flex;align-items:center;gap:18px;padding:0 18px;background:var(--head);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
   .brand{font-weight:800;letter-spacing:3px;font-size:15px}
   .brand .sub{color:var(--C);font-weight:700;letter-spacing:2px;margin-left:6px;font-size:12px}
+  /* floor switcher (Gold / BTC / US100) */
+  .floorsw{display:inline-flex;gap:3px;padding:2px;background:var(--card2);border:1px solid var(--line2);border-radius:9px}
+  .fbtn{padding:4px 12px;border:none;background:none;cursor:pointer;font-family:var(--font-ui);font-size:12px;
+    font-weight:700;letter-spacing:.5px;color:var(--mut);border-radius:7px}
+  .fbtn:hover{color:var(--fg)}
+  .fbtn.on{background:rgba(0,212,255,.14);color:var(--C)}
   .pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:1px}
   .dot{width:6px;height:6px;border-radius:50%;animation:pPulse 1.6s ease-in-out infinite}
   .px{font-size:12px;font-weight:600;letter-spacing:1.5px;color:var(--mut)}
@@ -212,8 +218,13 @@
 <div class="app">
   <header>
     <span class="brand">PRISM<span class="sub">· PDC FLOOR</span></span>
+    <span class="floorsw" id="floorsw">
+      <button class="fbtn on" data-desk="gold">Gold</button>
+      <button class="fbtn" data-desk="btc">BTC</button>
+      <button class="fbtn" data-desk="us100">US100</button>
+    </span>
     <span id="statusPill" class="pill"><span id="dot" class="dot"></span><span id="statusText">CONNECTING</span></span>
-    <span class="px">XAUUSD</span>
+    <span class="px" id="symbol">XAUUSD</span>
     <span id="price" class="mono" style="font-size:19px;font-weight:600">—</span>
     <span id="change" class="mono" style="font-size:12px;color:var(--mut)">—</span>
     <span class="spacer"></span>
@@ -258,6 +269,7 @@
   var C='#00D4FF',G='#00C896',R='#FF3B5C',A='#F5A623',MUT='#8892A4';
   var $=function(id){return document.getElementById(id);};
   var tab='signals', now=Date.now(), last=null;
+  var currentDesk='gold';   // which floor the detailed view shows (Gold / BTC / US100)
   // EXECUTION ORDER — ascending. Every desk ARMS together at the 00:00 UTC roll and trades the
   // whole UTC day. The anchor hour is NOT a "trade now" trigger: it is when that desk SAMPLES the
   // PDC that becomes the NEXT session's grid reference. Ascending is the real sequence of events
@@ -599,6 +611,9 @@
 
   function render(d,mode){
     now=Date.now(); setStatus(mode);
+    // per-floor anchor order comes from the response (gold has 7, btc 2, us100 1) — not hardcoded
+    if(d.anchors&&d.anchors.length) ORDER=d.anchors.map(function(a){return a.hour;});
+    if($('symbol')) $('symbol').textContent=d.symbol||'—';
     $('price').textContent=num(d.price,2);
     var ch=d.change; $('change').textContent=(ch>=0?'+':'')+num(ch,2);
     $('change').style.color=ch>=0?G:R;
@@ -642,7 +657,7 @@
 
   function tick(){
     var ctrl=new AbortController(); var to=setTimeout(function(){ctrl.abort();},4000);
-    fetch(BASE+'/pdc/floor',{signal:ctrl.signal,cache:'no-store',headers:{'Accept':'application/json'}})
+    fetch(BASE+'/pdc/floor?desk='+currentDesk,{signal:ctrl.signal,cache:'no-store',headers:{'Accept':'application/json'}})
       .then(function(r){return r.json();})
       .then(function(d){clearTimeout(to);last=d;$('err').textContent='';render(d,'online');})
       .catch(function(){
@@ -653,6 +668,16 @@
   }
   // Same-day BT now arrives inside /pdc/floor (history[].bt_pnl/bt_outcome), written
   // by the daily Fargate BT into pdc_bt_daily — no static sidecar / average.
+  // floor switcher — swap the detailed view between Gold / BTC / US100 (one page, all floors).
+  // The endpoint returns the same shape per desk with rich fields null on the minimal (btc/us100)
+  // floors, so the FTMO/DD/PDC/rungs cards simply don't render there.
+  document.getElementById('floorsw').addEventListener('click',function(e){
+    var b=e.target&&e.target.closest?e.target.closest('.fbtn'):null; if(!b)return;
+    var desk=b.getAttribute('data-desk'); if(desk===currentDesk)return;
+    currentDesk=desk; last=null;
+    Array.prototype.forEach.call(document.querySelectorAll('.fbtn'),function(x){x.classList.toggle('on',x===b);});
+    renderEmpty(); tick();
+  });
   renderEmpty(); tick(); setInterval(tick,5000);
 })();
 </script>
