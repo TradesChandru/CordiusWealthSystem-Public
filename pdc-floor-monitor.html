@@ -26,7 +26,7 @@
   header{height:48px;flex:0 0 48px;display:flex;align-items:center;gap:18px;padding:0 18px;background:var(--head);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
   .brand{font-weight:800;letter-spacing:3px;font-size:15px}
   .brand .sub{color:var(--C);font-weight:700;letter-spacing:2px;margin-left:6px;font-size:12px}
-  /* floor switcher (Gold / BTC / US100) */
+  /* floor switcher (Gold / BTC / US100 / EURUSD) */
   .floorsw{display:inline-flex;gap:3px;padding:2px;background:var(--card2);border:1px solid var(--line2);border-radius:9px}
   .fbtn{padding:4px 12px;border:none;background:none;cursor:pointer;font-family:var(--font-ui);font-size:12px;
     font-weight:700;letter-spacing:.5px;color:var(--mut);border-radius:7px}
@@ -222,6 +222,7 @@
       <button class="fbtn on" data-desk="gold">Gold</button>
       <button class="fbtn" data-desk="btc">BTC</button>
       <button class="fbtn" data-desk="us100">US100</button>
+      <button class="fbtn" data-desk="eurusd">EURUSD</button>
     </span>
     <span id="statusPill" class="pill"><span id="dot" class="dot"></span><span id="statusText">CONNECTING</span></span>
     <span class="px" id="symbol">XAUUSD</span>
@@ -269,7 +270,7 @@
   var C='#00D4FF',G='#00C896',R='#FF3B5C',A='#F5A623',MUT='#8892A4';
   var $=function(id){return document.getElementById(id);};
   var tab='signals', now=Date.now(), last=null;
-  var currentDesk='gold';   // which floor the detailed view shows (Gold / BTC / US100)
+  var currentDesk='gold';   // which floor the detailed view shows (Gold / BTC / US100 / EURUSD)
   // EXECUTION ORDER — ascending. Every desk ARMS together at the 00:00 UTC roll and trades the
   // whole UTC day. The anchor hour is NOT a "trade now" trigger: it is when that desk SAMPLES the
   // PDC that becomes the NEXT session's grid reference. Ascending is the real sequence of events
@@ -614,7 +615,8 @@
     // per-floor anchor order comes from the response (gold has 7, btc 2, us100 1) — not hardcoded
     if(d.anchors&&d.anchors.length) ORDER=d.anchors.map(function(a){return a.hour;});
     if($('symbol')) $('symbol').textContent=d.symbol||'—';
-    $('price').textContent=num(d.price,2);
+    // FX shows up to 5dp (pips) but never pads: honest at 1.14 today, full 1.14325 once the endpoint sends it.
+    $('price').textContent=(d.price==null||isNaN(d.price))?'—':Number(d.price).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:d.desk==='eurusd'?5:2});
     var ch=d.change; $('change').textContent=(ch>=0?'+':'')+num(ch,2);
     $('change').style.color=ch>=0?G:R;
     $('session').textContent=d.session||'—';
@@ -668,7 +670,7 @@
   }
   // Same-day BT now arrives inside /pdc/floor (history[].bt_pnl/bt_outcome), written
   // by the daily Fargate BT into pdc_bt_daily — no static sidecar / average.
-  // floor switcher — swap the detailed view between Gold / BTC / US100 (one page, all floors).
+  // floor switcher — swap the detailed view between Gold / BTC / US100 / EURUSD (one page, all floors).
   // The endpoint returns the same shape per desk with rich fields null on the minimal (btc/us100)
   // floors, so the FTMO/DD/PDC/rungs cards simply don't render there.
   document.getElementById('floorsw').addEventListener('click',function(e){
