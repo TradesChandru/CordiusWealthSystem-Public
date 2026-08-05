@@ -26,26 +26,6 @@ body{background:var(--bg);color:#E8ECF4;font:15px/1.55 var(--font-ui);
 a{color:inherit;text-decoration:none}
 :focus-visible{outline:2px solid var(--C);outline-offset:3px;border-radius:6px}
 
-/* ── gate ─────────────────────────────────────────────────────────────────── */
-#gate{position:fixed;inset:0;z-index:50;background:var(--bg);
-      display:flex;align-items:center;justify-content:center;padding:24px}
-#gate[hidden]{display:none}
-.gatebox{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);
-         border-radius:16px;padding:30px 28px}
-.lock{width:34px;height:34px;border-radius:9px;background:rgba(0,212,255,.12);
-      border:1px solid rgba(0,212,255,.3);display:flex;align-items:center;justify-content:center;
-      color:var(--C);font-size:17px;margin-bottom:16px}
-.gatebox h1{font-size:17px;margin:0 0 5px;letter-spacing:-.01em}
-.gatebox p{margin:0 0 20px;color:var(--mut);font-size:13px}
-.row{display:flex;gap:8px}
-input[type=password]{flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);
-  border-radius:9px;padding:10px 12px;color:#E8ECF4;font:14px var(--font-mono)}
-input[type=password]::placeholder{color:var(--dim)}
-button{background:var(--C);color:#04121a;border:0;border-radius:9px;padding:10px 16px;
-       font:600 14px var(--font-ui);cursor:pointer}
-button:hover{filter:brightness(1.08)}
-#err{color:var(--R);font-size:12.5px;margin-top:11px;min-height:17px}
-
 /* ── page ─────────────────────────────────────────────────────────────────── */
 .wrap{max-width:940px;margin:0 auto;padding:30px 20px 60px}
 header{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;
@@ -53,10 +33,6 @@ header{display:flex;justify-content:space-between;align-items:flex-start;gap:14p
 .eyebrow{font:700 11px var(--font-ui);letter-spacing:.17em;text-transform:uppercase;color:var(--C)}
 h2.t{font-size:21px;margin:3px 0 0;letter-spacing:-.015em}
 .sub{color:var(--mut);font-size:13px;margin-top:5px}
-.lock-out{background:none;color:var(--mut);border:1px solid var(--line);padding:7px 13px;
-          font:500 12.5px var(--font-ui);border-radius:8px}
-.lock-out:hover{color:#E8ECF4;filter:none}
-
 .feed{display:inline-flex;align-items:center;gap:8px;margin:18px 0 26px;padding:7px 13px;
       border:1px solid var(--line);background:var(--card2);border-radius:999px;
       font:500 12.5px var(--font-mono);color:var(--mut)}
@@ -90,28 +66,13 @@ h2.t{font-size:21px;margin:3px 0 0;letter-spacing:-.015em}
 </head>
 <body>
 
-<div id=gate>
-  <div class=gatebox>
-    <div class=lock>&#9679;</div>
-    <h1>CIP Control</h1>
-    <p>Enter the passphrase to list the desks.</p>
-    <form class=row id=gform>
-      <input type=password id=pw placeholder="passphrase" autocomplete="current-password"
-             autofocus aria-label="passphrase">
-      <button type=submit>Open</button>
-    </form>
-    <div id=err role=alert></div>
-  </div>
-</div>
-
-<main class=wrap id=main hidden>
+<main class=wrap id=main>
   <header>
     <div>
       <div class=eyebrow>Cordius &middot; capital intelligence platform</div>
       <h2 class=t>Control</h2>
       <div class=sub>Every board and monitor on this host, with what is actually running.</div>
     </div>
-    <button class=lock-out id=lock type=button>Lock</button>
   </header>
 
   <div class=feed><span class=dot id=fdot></span><span id=ftxt>checking the data feed&hellip;</span></div>
@@ -185,59 +146,17 @@ h2.t{font-size:21px;margin:3px 0 0;letter-spacing:-.015em}
 </main>
 
 <script>
-// ── gate ────────────────────────────────────────────────────────────────────
-// DELIBERATE SCOPE: this is a DETERRENT, not access control. app.cordius.in is a static
-// host, so the check necessarily runs in the browser — and every page it lists stays
-// directly reachable by URL whether or not you pass this, as does the api.cordius.in feed
-// they read from. It stops a shoulder-surf or an idle click, nothing more. Real protection
-// for these pages is Cloudflare Access in front of the host (the domain is already proxied
-// by Cloudflare); real protection for the DATA is putting the portal JWT on the api routes.
-// The passphrase is stored as a SHA-256 digest so it is not sitting in the source as text.
-var HASH = '231ebf7a283e84180e6d237faea19d3bde40c5bed4d3472bb020f210389f5bbd';
-var KEY = 'cip-control-ok';
-
-var gate = document.getElementById('gate');
-var main = document.getElementById('main');
-var err  = document.getElementById('err');
-
-async function sha256(s){
-  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
-  return Array.from(new Uint8Array(buf)).map(function(b){
-    return b.toString(16).padStart(2, '0');
-  }).join('');
-}
-
-function open_(){
-  gate.hidden = true;
-  main.hidden = false;
-  checkFeed();
-}
-
-if (sessionStorage.getItem(KEY) === HASH) open_();
-
-document.getElementById('gform').addEventListener('submit', async function(e){
-  e.preventDefault();
-  var el = document.getElementById('pw');
-  err.textContent = '';
-  try{
-    var h = await sha256(el.value);
-    if (h === HASH){
-      sessionStorage.setItem(KEY, HASH);   // this tab only; closing it re-locks
-      open_();
-    } else {
-      err.textContent = 'Not that one.';
-      el.select();
-    }
-  }catch(ex){
-    // crypto.subtle needs a secure context; say so rather than failing silently
-    err.textContent = 'Cannot hash here — open the page over https.';
-  }
-});
-
-document.getElementById('lock').addEventListener('click', function(){
-  sessionStorage.removeItem(KEY);
-  location.reload();
-});
+// ACCESS CONTROL IS NOT DONE HERE. This page carries no gate on purpose: app.cordius.in
+// is fronted by Cloudflare Access, which authenticates at the edge before the request ever
+// reaches GitHub Pages. The passphrase prompt that used to sit here was only ever a
+// deterrent — a static host cannot check a credential, so it ran in the browser while
+// every page it lists stayed directly reachable by URL anyway. Keeping it alongside real
+// auth would be worse than useless: two locks invite the assumption that one of them is
+// doing something. If Access is ever turned off, this page is public again — restore
+// protection at the edge, not in here.
+//
+// NOTE the api.cordius.in feed below is a DIFFERENT host and is NOT behind Access; it is
+// public with CORS *, which is what lets these boards (and the weekend toggle) read it.
 
 // ── data-feed check ─────────────────────────────────────────────────────────
 // The boards are only as good as api.cordius.in, so surface that here rather than making
@@ -260,6 +179,8 @@ async function checkFeed(){
     txt.textContent = 'data feed unreachable (' + e.message + ')';
   }
 }
+
+checkFeed();
 </script>
 </body>
 </html>
