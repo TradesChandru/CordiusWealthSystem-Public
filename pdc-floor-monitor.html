@@ -1,3 +1,9 @@
+<meta charset="utf-8">
+<!-- The page uses 129 non-ASCII glyphs (· — → ✓ ✗ ▲ ● ⊕ ⊖ ⊘ …) for trade-kind icons and
+     status marks but declared no charset, so correct rendering depended entirely on the
+     host sending charset=utf-8 in Content-Type. That held on GitHub Pages, but it is a
+     dependency on infrastructure for something the document should assert itself — and
+     this page now also serves from Cloudflare. Must stay within the first 1024 bytes. -->
 <title>PRISM · PDC Floor — Live</title>
 <style>
   :root{
